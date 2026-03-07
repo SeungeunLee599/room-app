@@ -498,7 +498,7 @@ export default function HomePage() {
                           {rangeLabel(reservation.startHour, reservation.endHour)}
                         </p>
                         <p className="text-xs text-[var(--muted)]">
-                          {reservation.isBlocked ? `사유: ${reservation.name}` : reservation.name}
+                          {reservation.name}
                         </p>
                       </li>
                     ))}
@@ -771,7 +771,7 @@ export default function HomePage() {
                       {rangeLabel(reservation.startHour, reservation.endHour)}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      {reservation.isBlocked ? `사유: ${reservation.name}` : reservation.name}
+                      {reservation.name}
                     </td>
                     <td className="px-4 py-3">
                       {reservation.isBlocked ? (
