@@ -455,8 +455,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div id="cancel-confirm-anchor" />
-
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-2">
           <h2 className="shrink-0 whitespace-nowrap text-base font-bold tracking-tight text-slate-900 sm:text-xl">예약 목록</h2>
@@ -872,6 +870,8 @@ export default function HomePage() {
           </table>
         </div>
       </section>
+
+      <div id="cancel-confirm-anchor" />
 
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
         <div className="mb-4 flex items-center justify-between">
