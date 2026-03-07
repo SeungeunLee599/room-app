@@ -189,6 +189,7 @@ export default function HomePage() {
   }, []);
 
   const [todayReservations, setTodayReservations] = useState<PublicReservation[]>([]);
+  const [boardDate, setBoardDate] = useState(todayDate);
   const [viewDate, setViewDate] = useState(todayDate);
   const [viewReservations, setViewReservations] = useState<PublicReservation[]>([]);
   const [bookingDateReservations, setBookingDateReservations] = useState<PublicReservation[]>([]);
@@ -221,7 +222,7 @@ export default function HomePage() {
     let active = true;
 
     const loadToday = async () => {
-      const result = await fetchReservationsByDate(todayDate);
+      const result = await fetchReservationsByDate(boardDate);
       if (!active || !result.ok) {
         return;
       }
@@ -233,7 +234,7 @@ export default function HomePage() {
     return () => {
       active = false;
     };
-  }, [todayDate, refreshKey]);
+  }, [boardDate, refreshKey]);
 
   useEffect(() => {
     let active = true;
@@ -446,9 +447,16 @@ export default function HomePage() {
       </section>
 
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 목록</h2>
-          <span className="text-sm text-[var(--muted)]">{formatDateLabel(todayDate)}</span>
+          <input
+            type="date"
+            min={todayDate}
+            max={maxBookingDate}
+            value={boardDate}
+            onChange={(event) => setBoardDate(event.target.value)}
+            className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm"
+          />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
