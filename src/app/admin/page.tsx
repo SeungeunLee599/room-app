@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -30,6 +30,19 @@ function hourLabel(hour: number): string {
 
 function rangeLabel(startHour: number, endHour: number): string {
   return `${hourLabel(startHour)} - ${hourLabel(endHour)}`;
+}
+
+function formatDateLabel(date: string): string {
+  const value = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(value.getTime())) {
+    return date;
+  }
+
+  return value.toLocaleDateString("ko-KR", {
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  });
 }
 
 function sortReservations(items: AdminReservation[]): AdminReservation[] {
@@ -177,132 +190,182 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  const todayReservationsCount = reservations.filter((item) => item.date === todayDate).length;
+
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
-      <header className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold sm:text-3xl">관리자 예약 관리</h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">학번 포함 전체 예약 내역 조회/취소</p>
+    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <section className="relative overflow-hidden rounded-3xl border border-[var(--border-strong)] bg-[var(--card)] p-6 shadow-[0_20px_50px_rgba(42,79,138,0.12)] sm:p-8">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle,_#d7e7ff_0%,_rgba(215,231,255,0)_70%)]" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="inline-flex w-fit items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-wide text-[var(--accent)]">
+              ADMIN DASHBOARD
+            </p>
+            <h1 className="mt-3 text-2xl font-black leading-tight tracking-tight text-slate-900 sm:text-3xl">
+              원광대학교 의과대학 CPX/OXCE Room 관리자
+            </h1>
+            <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
+              학번 포함 전체 예약 조회 및 관리자 취소를 수행합니다.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:w-fit">
+            <article className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] px-4 py-3">
+              <p className="text-xs text-[var(--muted)]">오늘 날짜</p>
+              <p className="mt-1 text-base font-bold text-slate-900">{formatDateLabel(todayDate)}</p>
+            </article>
+            <article className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] px-4 py-3">
+              <p className="text-xs text-[var(--muted)]">오늘 예약 수</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{todayReservationsCount}</p>
+            </article>
+          </div>
         </div>
-        <Link
-          href="/"
-          className="inline-flex w-fit items-center justify-center rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold"
-        >
-          메인으로
-        </Link>
-      </header>
+
+        <div className="relative mt-5">
+          <Link
+            href="/"
+            className="inline-flex items-center rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            메인으로 이동
+          </Link>
+        </div>
+      </section>
 
       {notice ? (
-        <div
-          className={`rounded-lg border px-4 py-3 text-sm ${
+        <section
+          className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
             notice.kind === "success"
-              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-              : "border-rose-300 bg-rose-50 text-rose-700"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-rose-200 bg-rose-50 text-rose-700"
           }`}
         >
           {notice.text}
-        </div>
+        </section>
       ) : null}
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-        <h2 className="text-lg font-semibold">관리자 인증</h2>
-        <form className="mt-4 grid gap-3 sm:max-w-md" onSubmit={onSubmitAuth}>
-          <input
-            type="password"
-            required
-            value={adminPassword}
-            onChange={(event) => setAdminPassword(event.target.value)}
-            placeholder="관리자 비밀번호"
-            className="h-11 rounded-lg border border-[var(--border)] px-3"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="h-11 rounded-lg bg-[var(--accent)] font-semibold text-white disabled:opacity-60"
-          >
-            {loading ? "확인 중..." : "로그인"}
-          </button>
-        </form>
+      <section className="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
+        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">관리자 인증</h2>
+            <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+              SECURE
+            </span>
+          </div>
+
+          <form className="grid gap-3" onSubmit={onSubmitAuth}>
+            <input
+              type="password"
+              required
+              value={adminPassword}
+              onChange={(event) => setAdminPassword(event.target.value)}
+              placeholder="관리자 비밀번호"
+              className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="h-11 rounded-xl bg-[var(--accent)] font-semibold text-white transition hover:brightness-105 disabled:opacity-60"
+            >
+              {loading ? "확인 중..." : authenticated ? "재인증" : "로그인"}
+            </button>
+          </form>
+
+          <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--card-soft)] px-3 py-2 text-xs text-[var(--muted)]">
+            인증 후 전체 예약 목록과 취소 기능이 활성화됩니다.
+          </div>
+        </article>
+
+        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">조회 필터</h2>
+            <button
+              type="button"
+              onClick={() => setRefreshKey((previous) => previous + 1)}
+              className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm font-medium text-slate-700"
+            >
+              새로고침
+            </button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
+            <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={useDateFilter}
+                onChange={(event) => setUseDateFilter(event.target.checked)}
+              />
+              날짜 필터 사용
+            </label>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(event) => setDateFilter(event.target.value)}
+              disabled={!useDateFilter}
+              className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm disabled:opacity-60"
+            />
+          </div>
+        </article>
       </section>
 
       {authenticated ? (
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold">전체 예약 목록</h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={useDateFilter}
-                  onChange={(event) => setUseDateFilter(event.target.checked)}
-                />
-                날짜 필터 사용
-              </label>
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(event) => setDateFilter(event.target.value)}
-                disabled={!useDateFilter}
-                className="h-10 rounded-lg border border-[var(--border)] px-3 disabled:opacity-60"
-              />
-              <button
-                type="button"
-                onClick={() => setRefreshKey((previous) => previous + 1)}
-                className="h-10 rounded-lg border border-[var(--border)] px-3 text-sm"
-              >
-                새로고침
-              </button>
-            </div>
+        <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">전체 예약 목록</h2>
+            <span className="text-sm text-[var(--muted)]">총 {reservations.length}건</span>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-2xl border border-[var(--border)]">
             <table className="min-w-full border-collapse text-sm">
-              <thead>
+              <thead className="bg-[var(--card-soft)] text-slate-700">
                 <tr className="border-b border-[var(--border)] text-left">
-                  <th className="px-3 py-2">ID</th>
-                  <th className="px-3 py-2">학번</th>
-                  <th className="px-3 py-2">이름</th>
-                  <th className="px-3 py-2">방</th>
-                  <th className="px-3 py-2">날짜</th>
-                  <th className="px-3 py-2">시간</th>
-                  <th className="px-3 py-2">예약 시간</th>
-                  <th className="px-3 py-2">생성 시각</th>
-                  <th className="px-3 py-2">작업</th>
+                  <th className="px-3 py-3 font-semibold">ID</th>
+                  <th className="px-3 py-3 font-semibold">학번</th>
+                  <th className="px-3 py-3 font-semibold">이름</th>
+                  <th className="px-3 py-3 font-semibold">방</th>
+                  <th className="px-3 py-3 font-semibold">날짜</th>
+                  <th className="px-3 py-3 font-semibold">시간</th>
+                  <th className="px-3 py-3 font-semibold">예약 시간</th>
+                  <th className="px-3 py-3 font-semibold">생성 시각</th>
+                  <th className="px-3 py-3 font-semibold">작업</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="bg-white">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-4 text-center text-[var(--muted)]">
+                    <td colSpan={9} className="px-3 py-6 text-center text-[var(--muted)]">
                       불러오는 중...
                     </td>
                   </tr>
                 ) : reservations.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-4 text-center text-[var(--muted)]">
+                    <td colSpan={9} className="px-3 py-6 text-center text-[var(--muted)]">
                       예약 내역이 없습니다.
                     </td>
                   </tr>
                 ) : (
                   reservations.map((reservation) => (
-                    <tr key={reservation.id} className="border-b border-[var(--border)]">
-                      <td className="px-3 py-2">{reservation.id}</td>
-                      <td className="px-3 py-2">{reservation.studentId}</td>
-                      <td className="px-3 py-2">{reservation.name}</td>
-                      <td className="px-3 py-2">{reservation.roomName}</td>
-                      <td className="px-3 py-2">{reservation.date}</td>
-                      <td className="px-3 py-2">
+                    <tr key={reservation.id} className="border-b border-[var(--border)] last:border-b-0">
+                      <td className="px-3 py-3 text-slate-700">{reservation.id}</td>
+                      <td className="px-3 py-3 text-slate-700">{reservation.studentId}</td>
+                      <td className="px-3 py-3 text-slate-700">{reservation.name}</td>
+                      <td className="px-3 py-3">
+                        <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--accent)]">
+                          {reservation.roomName}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-slate-700">{reservation.date}</td>
+                      <td className="px-3 py-3 text-slate-700">
                         {rangeLabel(reservation.startHour, reservation.endHour)}
                       </td>
-                      <td className="px-3 py-2">{reservation.durationHours}시간</td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-3 text-slate-700">{reservation.durationHours}시간</td>
+                      <td className="px-3 py-3 text-slate-700">
                         {new Date(reservation.createdAt).toLocaleString()}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-3">
                         <button
                           type="button"
                           onClick={() => onCancelAsAdmin(reservation.id)}
-                          className="rounded-md border border-rose-300 px-3 py-1 text-rose-600"
+                          className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
                         >
                           취소
                         </button>
@@ -314,8 +377,11 @@ export default function AdminPage() {
             </table>
           </div>
         </section>
-      ) : null}
-    </div>
+      ) : (
+        <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 py-6 text-center text-sm text-[var(--muted)]">
+          관리자 인증 후 예약 목록이 표시됩니다.
+        </section>
+      )}
+    </main>
   );
 }
-

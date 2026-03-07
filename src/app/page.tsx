@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -41,6 +41,19 @@ function hourLabel(hour: number): string {
 
 function rangeLabel(startHour: number, endHour: number): string {
   return `${hourLabel(startHour)} - ${hourLabel(endHour)}`;
+}
+
+function formatDateLabel(date: string): string {
+  const value = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(value.getTime())) {
+    return date;
+  }
+
+  return value.toLocaleDateString("ko-KR", {
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  });
 }
 
 function getBlockedHours(
@@ -210,6 +223,11 @@ export default function HomePage() {
   const hasSelectedStartHour = form.startHour !== "";
   const selectedStartHour = Number(form.startHour);
 
+  const todayCount = todayReservations.length;
+  const availableRoomsCount = ROOM_NAMES.filter(
+    (room) => todayReservations.every((reservation) => reservation.roomName !== room),
+  ).length;
+
   const onSubmitReservation = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setNotice(null);
@@ -308,75 +326,80 @@ export default function HomePage() {
   };
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
-      <header className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-        <h1 className="text-2xl font-bold sm:text-3xl">방 예약 시스템</h1>
-      </header>
+    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <section className="relative overflow-hidden rounded-3xl border border-[var(--border-strong)] bg-[var(--card)] p-6 shadow-[0_20px_50px_rgba(42,79,138,0.12)] sm:p-8">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle,_#d7e7ff_0%,_rgba(215,231,255,0)_70%)]" />
+        <div className="pointer-events-none absolute -bottom-24 -left-20 h-64 w-64 rounded-full bg-[radial-gradient(circle,_#dff3ee_0%,_rgba(223,243,238,0)_70%)]" />
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">오늘 예약 현황 ({todayDate})</h2>
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-3">
+            <p className="inline-flex w-fit items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-wide text-[var(--accent)]">
+              WKU MEDICAL COLLEGE
+            </p>
+            <h1 className="text-2xl font-black leading-tight tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
+              원광대학교 의과대학 CPX/OXCE Room 예약 시스템
+            </h1>
+            <p className="max-w-3xl text-sm text-[var(--muted)] sm:text-base">
+              실습실 예약을 한 화면에서 확인하고 신청할 수 있는 통합 대시보드입니다.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:w-fit">
+            <article className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] px-4 py-3">
+              <p className="text-xs text-[var(--muted)]">오늘 예약</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{todayCount}</p>
+            </article>
+            <article className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] px-4 py-3">
+              <p className="text-xs text-[var(--muted)]">즉시 가능 Room</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{availableRoomsCount}</p>
+            </article>
+          </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {ROOM_NAMES.map((roomName) => {
-            const reservations = todayReservations.filter(
-              (reservation) => reservation.roomName === roomName,
-            );
-            return (
-              <div
-                key={roomName}
-                className="rounded-xl border border-[var(--border)] bg-white p-3"
-              >
-                <p className="text-sm font-semibold">{roomName}</p>
-                <p className="mt-2 text-sm text-[var(--muted)]">
-                  {reservations.length === 0
-                    ? "예약 없음"
-                    : reservations
-                        .map((reservation) =>
-                          `${rangeLabel(reservation.startHour, reservation.endHour)} (${reservation.name})`,
-                        )
-                        .join(" | ")}
-                </p>
-              </div>
-            );
-          })}
+
+        <div className="relative mt-5 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+          <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[var(--muted)]">
+            Today {formatDateLabel(todayDate)}
+          </span>
+          <Link
+            href="/admin"
+            className="rounded-full border border-[var(--border)] bg-white px-3 py-1 font-medium text-slate-700 transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            관리자 페이지
+          </Link>
         </div>
       </section>
 
-      {notice ? (
-        <section
-          className={`rounded-2xl border-2 px-5 py-4 text-base font-semibold shadow-sm ${
-            notice.kind === "success"
-              ? "border-emerald-400 bg-emerald-50 text-emerald-800"
-              : "border-rose-400 bg-rose-50 text-rose-800"
-          }`}
-        >
-          {notice.text}
-        </section>
-      ) : null}
+      <section className="grid gap-6 xl:grid-cols-[1.05fr_1fr]">
+        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 신청</h2>
+            <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+              NEW BOOKING
+            </span>
+          </div>
 
-      <section className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-          <h2 className="text-lg font-semibold">예약 신청</h2>
-          <form className="mt-4 grid gap-3" onSubmit={onSubmitReservation}>
-            <input
-              required
-              value={form.studentId}
-              onChange={(event) =>
-                setForm((previous) => ({ ...previous, studentId: event.target.value }))
-              }
-              placeholder="학번"
-              className="h-11 rounded-lg border border-[var(--border)] px-3"
-            />
-            <input
-              required
-              value={form.name}
-              onChange={(event) =>
-                setForm((previous) => ({ ...previous, name: event.target.value }))
-              }
-              placeholder="이름"
-              className="h-11 rounded-lg border border-[var(--border)] px-3"
-            />
+          <form className="grid gap-3" onSubmit={onSubmitReservation}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input
+                required
+                value={form.studentId}
+                onChange={(event) =>
+                  setForm((previous) => ({ ...previous, studentId: event.target.value }))
+                }
+                placeholder="학번"
+                className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+              />
+              <input
+                required
+                value={form.name}
+                onChange={(event) =>
+                  setForm((previous) => ({ ...previous, name: event.target.value }))
+                }
+                placeholder="이름"
+                className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+              />
+            </div>
+
             <input
               required
               maxLength={4}
@@ -387,40 +410,44 @@ export default function HomePage() {
                 setForm((previous) => ({ ...previous, password: event.target.value }))
               }
               placeholder="비밀번호 4자리"
-              className="h-11 rounded-lg border border-[var(--border)] px-3"
+              className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
             />
-            <select
-              value={form.roomName}
-              onChange={(event) =>
-                setForm((previous) => ({
-                  ...previous,
-                  roomName: event.target.value as RoomName,
-                  startHour: "",
-                  endHour: "",
-                }))
-              }
-              className="h-11 rounded-lg border border-[var(--border)] px-3"
-            >
-              {ROOM_NAMES.map((roomName) => (
-                <option key={roomName} value={roomName}>
-                  {roomName}
-                </option>
-              ))}
-            </select>
-            <input
-              type="date"
-              required
-              value={form.date}
-              onChange={(event) =>
-                setForm((previous) => ({
-                  ...previous,
-                  date: event.target.value,
-                  startHour: "",
-                  endHour: "",
-                }))
-              }
-              className="h-11 rounded-lg border border-[var(--border)] px-3"
-            />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <select
+                value={form.roomName}
+                onChange={(event) =>
+                  setForm((previous) => ({
+                    ...previous,
+                    roomName: event.target.value as RoomName,
+                    startHour: "",
+                    endHour: "",
+                  }))
+                }
+                className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+              >
+                {ROOM_NAMES.map((roomName) => (
+                  <option key={roomName} value={roomName}>
+                    {roomName}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="date"
+                required
+                value={form.date}
+                onChange={(event) =>
+                  setForm((previous) => ({
+                    ...previous,
+                    date: event.target.value,
+                    startHour: "",
+                    endHour: "",
+                  }))
+                }
+                className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+              />
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <select
@@ -433,7 +460,7 @@ export default function HomePage() {
                     endHour: "",
                   }))
                 }
-                className="h-11 rounded-lg border border-[var(--border)] px-3"
+                className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
               >
                 <option value="">시작 시간</option>
                 {START_HOURS.map((hour) => (
@@ -449,7 +476,7 @@ export default function HomePage() {
                 onChange={(event) =>
                   setForm((previous) => ({ ...previous, endHour: event.target.value }))
                 }
-                className="h-11 rounded-lg border border-[var(--border)] px-3"
+                className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
               >
                 <option value="">종료 시간</option>
                 {END_HOURS.map((hour) => {
@@ -470,28 +497,33 @@ export default function HomePage() {
             <button
               type="submit"
               disabled={loadingCreate}
-              className="mt-1 h-11 rounded-lg bg-[var(--accent)] font-semibold text-white disabled:opacity-60"
+              className="mt-1 h-11 rounded-xl bg-[var(--accent)] font-semibold text-white transition hover:brightness-105 disabled:opacity-60"
             >
               {loadingCreate ? "저장 중..." : "예약하기"}
             </button>
           </form>
-        </div>
+        </article>
 
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-          <h2 className="text-lg font-semibold">선택한 방/날짜 시간 현황</h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            {form.roomName} | {form.date}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
+        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">시간 현황</h2>
+            <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]">
+              {form.roomName}
+            </span>
+          </div>
+
+          <p className="mb-4 text-sm text-[var(--muted)]">{formatDateLabel(form.date)}</p>
+
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
             {START_HOURS.map((hour) => {
               const reserved = blockedHours.has(hour);
               return (
                 <span
                   key={hour}
-                  className={`rounded-md px-2 py-1 text-xs font-medium ${
+                  className={`rounded-lg border px-2 py-2 text-center text-xs font-semibold ${
                     reserved
-                      ? "bg-rose-100 text-rose-700"
-                      : "bg-emerald-100 text-emerald-700"
+                      ? "border-rose-200 bg-rose-50 text-rose-600"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-700"
                   }`}
                 >
                   {hourLabel(hour)}
@@ -499,67 +531,92 @@ export default function HomePage() {
               );
             })}
           </div>
-        </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              예약 가능 {24 - blockedHours.size}시간
+            </div>
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
+              예약 불가 {blockedHours.size}시간
+            </div>
+          </div>
+        </article>
       </section>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+      {notice ? (
+        <section
+          className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+            notice.kind === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-rose-200 bg-rose-50 text-rose-700"
+          }`}
+        >
+          {notice.text}
+        </section>
+      ) : null}
+
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-semibold">예약 목록 조회</h2>
+          <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 목록 조회</h2>
           <div className="flex items-center gap-2">
             <input
               type="date"
               value={viewDate}
               onChange={(event) => setViewDate(event.target.value)}
-              className="h-10 rounded-lg border border-[var(--border)] px-3"
+              className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm"
             />
             <button
               type="button"
               onClick={() => setRefreshKey((previous) => previous + 1)}
-              className="h-10 rounded-lg border border-[var(--border)] px-3 text-sm"
+              className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm font-medium text-slate-700"
             >
               새로고침
             </button>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-2xl border border-[var(--border)]">
           <table className="min-w-full border-collapse text-sm">
-            <thead>
+            <thead className="bg-[var(--card-soft)] text-slate-700">
               <tr className="border-b border-[var(--border)] text-left">
-                <th className="px-3 py-2">방</th>
-                <th className="px-3 py-2">날짜</th>
-                <th className="px-3 py-2">시간</th>
-                <th className="px-3 py-2">이름</th>
-                <th className="px-3 py-2">작업</th>
+                <th className="px-4 py-3 font-semibold">방</th>
+                <th className="px-4 py-3 font-semibold">날짜</th>
+                <th className="px-4 py-3 font-semibold">시간</th>
+                <th className="px-4 py-3 font-semibold">이름</th>
+                <th className="px-4 py-3 font-semibold">작업</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white">
               {loadingSchedule ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-4 text-center text-[var(--muted)]">
+                  <td colSpan={5} className="px-4 py-6 text-center text-[var(--muted)]">
                     불러오는 중...
                   </td>
                 </tr>
               ) : viewReservations.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-4 text-center text-[var(--muted)]">
+                  <td colSpan={5} className="px-4 py-6 text-center text-[var(--muted)]">
                     예약 내역이 없습니다.
                   </td>
                 </tr>
               ) : (
                 viewReservations.map((reservation) => (
-                  <tr key={reservation.id} className="border-b border-[var(--border)]">
-                    <td className="px-3 py-2">{reservation.roomName}</td>
-                    <td className="px-3 py-2">{reservation.date}</td>
-                    <td className="px-3 py-2">
+                  <tr key={reservation.id} className="border-b border-[var(--border)] last:border-b-0">
+                    <td className="px-4 py-3">
+                      <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--accent)]">
+                        {reservation.roomName}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">{reservation.date}</td>
+                    <td className="px-4 py-3 text-slate-700">
                       {rangeLabel(reservation.startHour, reservation.endHour)}
                     </td>
-                    <td className="px-3 py-2">{reservation.name}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-4 py-3 text-slate-700">{reservation.name}</td>
+                    <td className="px-4 py-3">
                       <button
                         type="button"
                         onClick={() => setSelectedForCancel(reservation)}
-                        className="rounded-md border border-[var(--border)] px-3 py-1"
+                        className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
                       >
                         취소
                       </button>
@@ -569,6 +626,58 @@ export default function HomePage() {
               )}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
+            오늘 예약 카드
+          </h2>
+          <span className="text-sm text-[var(--muted)]">{formatDateLabel(todayDate)}</span>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {ROOM_NAMES.map((roomName) => {
+            const reservations = todayReservations.filter(
+              (reservation) => reservation.roomName === roomName,
+            );
+
+            return (
+              <article
+                key={roomName}
+                className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] p-4"
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-bold text-slate-900">{roomName}</h3>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      reservations.length === 0
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {reservations.length === 0 ? "AVAILABLE" : `${reservations.length}건`}
+                  </span>
+                </div>
+
+                {reservations.length === 0 ? (
+                  <p className="text-sm text-[var(--muted)]">예약 없음</p>
+                ) : (
+                  <ul className="space-y-2 text-sm text-slate-700">
+                    {reservations.map((reservation) => (
+                      <li key={reservation.id} className="rounded-lg bg-white px-3 py-2">
+                        <p className="font-semibold">
+                          {rangeLabel(reservation.startHour, reservation.endHour)}
+                        </p>
+                        <p className="text-xs text-[var(--muted)]">{reservation.name}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -635,16 +744,6 @@ export default function HomePage() {
           </form>
         </section>
       ) : null}
-
-      <footer className="pt-2 text-center">
-        <Link
-          href="/admin"
-          className="text-sm font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-600"
-        >
-          관리자 페이지
-        </Link>
-      </footer>
-    </div>
+    </main>
   );
 }
-
