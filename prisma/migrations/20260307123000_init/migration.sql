@@ -1,4 +1,4 @@
-﻿CREATE TABLE "Reservation" (
+CREATE TABLE "Reservation" (
     "id" SERIAL NOT NULL,
     "studentId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
