@@ -449,14 +449,14 @@ export default function HomePage() {
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-2">
           <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 목록</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <input
               type="date"
               min={todayDate}
               max={maxBookingDate}
               value={boardDate}
               onChange={(event) => setBoardDate(event.target.value)}
-              className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm"
+              className="h-10 flex-1 rounded-xl border border-[var(--border)] bg-white px-3 text-sm sm:flex-none"
             />
             <button
               type="button"
@@ -739,7 +739,54 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-[var(--border)]">
+        <div className="space-y-3 md:hidden">
+          {loadingSchedule ? (
+            <p className="rounded-2xl border border-[var(--border)] bg-white px-4 py-6 text-center text-sm text-[var(--muted)]">
+              불러오는 중...
+            </p>
+          ) : viewReservations.length === 0 ? (
+            <p className="rounded-2xl border border-[var(--border)] bg-white px-4 py-6 text-center text-sm text-[var(--muted)]">
+              예약 내역이 없습니다.
+            </p>
+          ) : (
+            viewReservations.map((reservation) => (
+              <article
+                key={`mobile-${reservation.isBlocked ? "b" : "r"}-${reservation.id}`}
+                className={`rounded-2xl border p-4 ${
+                  reservation.isBlocked
+                    ? "border-amber-200 bg-amber-50/60"
+                    : "border-[var(--border)] bg-white"
+                }`}
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--accent)]">
+                    {reservation.roomName}
+                  </span>
+                  <span className="text-xs text-slate-500">{reservation.date}</span>
+                </div>
+                <p className="text-sm font-semibold text-slate-800">
+                  {rangeLabel(reservation.startHour, reservation.endHour)}
+                </p>
+                <p className="mt-1 text-sm text-slate-700">{reservation.name}</p>
+                <div className="mt-3">
+                  {reservation.isBlocked ? (
+                    <span className="text-xs font-semibold text-amber-700">차단 시간</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedForCancel(reservation)}
+                      className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                    >
+                      취소
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto rounded-2xl border border-[var(--border)] md:block">
           <table className="min-w-full border-collapse text-sm">
             <thead className="bg-[var(--card-soft)] text-slate-700">
               <tr className="border-b border-[var(--border)] text-left">
