@@ -449,14 +449,24 @@ export default function HomePage() {
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-2">
           <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 목록</h2>
-          <input
-            type="date"
-            min={todayDate}
-            max={maxBookingDate}
-            value={boardDate}
-            onChange={(event) => setBoardDate(event.target.value)}
-            className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              min={todayDate}
+              max={maxBookingDate}
+              value={boardDate}
+              onChange={(event) => setBoardDate(event.target.value)}
+              className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setBoardDate(todayDate)}
+              disabled={boardDate === todayDate}
+              className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              오늘
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
