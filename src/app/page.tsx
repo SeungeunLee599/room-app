@@ -228,11 +228,6 @@ export default function HomePage() {
   const hasSelectedStartHour = form.startHour !== "";
   const selectedStartHour = Number(form.startHour);
 
-  const todayCount = todayReservations.length;
-  const availableRoomsCount = ROOM_NAMES.filter(
-    (room) => todayReservations.every((reservation) => reservation.roomName !== room),
-  ).length;
-
   const onSubmitReservation = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setNotice(null);
@@ -337,12 +332,8 @@ export default function HomePage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <section className="relative isolate overflow-hidden rounded-[28px] border border-[#d6e0f0] bg-[linear-gradient(135deg,#f7fbff_0%,#e7f0ff_38%,#dde8ff_65%,#f2f7ff_100%)] p-6 shadow-[0_28px_60px_rgba(42,79,138,0.18)] sm:p-8">
-        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,_rgba(56,115,255,0.34)_0%,_rgba(56,115,255,0)_68%)]" />
-        <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-[radial-gradient(circle,_rgba(80,180,255,0.18)_0%,_rgba(80,180,255,0)_70%)]" />
-        <div className="pointer-events-none absolute right-24 top-10 h-40 w-64 rotate-[-12deg] rounded-3xl border border-white/60 bg-white/35 shadow-[0_20px_30px_rgba(66,112,192,0.18)] backdrop-blur-sm" />
-
-        <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+      <section className="relative isolate overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,#f7fbff_0%,#e7f0ff_38%,#dde8ff_65%,#f2f7ff_100%)] p-6 shadow-[0_20px_40px_rgba(42,79,138,0.12)] sm:p-8">
+        <div className="relative flex flex-col gap-4">
           <div className="space-y-4">
             <p className="inline-flex w-fit items-center rounded-full border border-[#aec6f2] bg-white/80 px-4 py-1.5 text-sm font-extrabold tracking-wide text-[#204585] shadow-sm">
               원광대학교 의과대학
@@ -350,17 +341,6 @@ export default function HomePage() {
             <h1 className="text-3xl font-black leading-tight tracking-tight text-[#0f2242] sm:text-4xl">
               CPX/OXCE Room 예약 시스템
             </h1>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:min-w-[360px]">
-            <article className="flex min-h-[108px] flex-col justify-center rounded-2xl border border-white/70 bg-white/80 px-5 py-4 shadow-[0_12px_26px_rgba(52,95,168,0.14)] backdrop-blur-sm">
-              <p className="text-sm font-semibold text-[#4b628b]">오늘 예약</p>
-              <p className="mt-2 text-3xl font-black text-[#0f2242]">{todayCount}</p>
-            </article>
-            <article className="flex min-h-[108px] flex-col justify-center rounded-2xl border border-white/70 bg-white/80 px-5 py-4 shadow-[0_12px_26px_rgba(52,95,168,0.14)] backdrop-blur-sm">
-              <p className="text-sm font-semibold text-[#4b628b]">즉시 가능 ROOM</p>
-              <p className="mt-2 text-3xl font-black text-[#0f2242]">{availableRoomsCount}</p>
-            </article>
           </div>
         </div>
 
@@ -587,7 +567,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            예약 가능 {24 - blockedHours.size}시간
+            예약 가능: {24 - blockedHours.size}시간
           </div>
         </article>
       </section>
@@ -745,7 +725,7 @@ export default function HomePage() {
       <footer className="flex justify-end pt-1">
         <Link
           href="/admin"
-          className="inline-flex items-center rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          className="text-sm font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 transition hover:text-slate-700"
         >
           관리자 페이지
         </Link>
