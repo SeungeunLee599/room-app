@@ -123,6 +123,11 @@ async function fetchReservationsByDate(
 
 export default function HomePage() {
   const todayDate = useMemo(() => getLocalDateString(), []);
+  const maxBookingDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 14);
+    return getLocalDateString(date);
+  }, []);
 
   const [todayReservations, setTodayReservations] = useState<PublicReservation[]>([]);
   const [viewDate, setViewDate] = useState(todayDate);
@@ -232,6 +237,11 @@ export default function HomePage() {
     event.preventDefault();
     setNotice(null);
 
+    if (form.date < todayDate || form.date > maxBookingDate) {
+      setNotice({ kind: "error", text: "예약 날짜는 오늘부터 14일 이내만 선택할 수 있습니다." });
+      return;
+    }
+
     const startHour = Number(form.startHour);
     const endHour = Number(form.endHour);
 
@@ -327,34 +337,35 @@ export default function HomePage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <section className="relative overflow-hidden rounded-3xl border border-[var(--border-strong)] bg-[var(--card)] p-6 shadow-[0_20px_50px_rgba(42,79,138,0.12)] sm:p-8">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle,_#d7e7ff_0%,_rgba(215,231,255,0)_70%)]" />
-        <div className="pointer-events-none absolute -bottom-24 -left-20 h-64 w-64 rounded-full bg-[radial-gradient(circle,_#dff3ee_0%,_rgba(223,243,238,0)_70%)]" />
+      <section className="relative isolate overflow-hidden rounded-[28px] border border-[#d6e0f0] bg-[linear-gradient(135deg,#f7fbff_0%,#e7f0ff_38%,#dde8ff_65%,#f2f7ff_100%)] p-6 shadow-[0_28px_60px_rgba(42,79,138,0.18)] sm:p-8">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,_rgba(56,115,255,0.34)_0%,_rgba(56,115,255,0)_68%)]" />
+        <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-[radial-gradient(circle,_rgba(80,180,255,0.18)_0%,_rgba(80,180,255,0)_70%)]" />
+        <div className="pointer-events-none absolute right-24 top-10 h-40 w-64 rotate-[-12deg] rounded-3xl border border-white/60 bg-white/35 shadow-[0_20px_30px_rgba(66,112,192,0.18)] backdrop-blur-sm" />
 
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-3">
-            <p className="inline-flex w-fit items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-wide text-[var(--accent)]">
-              WKU MEDICAL COLLEGE
+        <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+          <div className="space-y-4">
+            <p className="inline-flex w-fit items-center rounded-full border border-[#aec6f2] bg-white/80 px-4 py-1.5 text-sm font-extrabold tracking-wide text-[#204585] shadow-sm">
+              원광대학교 의과대학
             </p>
-            <h1 className="text-2xl font-black leading-tight tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
-              원광대학교 의과대학 CPX/OXCE Room 예약 시스템
+            <h1 className="text-3xl font-black leading-tight tracking-tight text-[#0f2242] sm:text-4xl">
+              CPX/OXCE Room 예약 시스템
             </h1>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:w-fit">
-            <article className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] px-4 py-3">
-              <p className="text-xs text-[var(--muted)]">오늘 예약</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">{todayCount}</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:min-w-[360px]">
+            <article className="flex min-h-[108px] flex-col justify-center rounded-2xl border border-white/70 bg-white/80 px-5 py-4 shadow-[0_12px_26px_rgba(52,95,168,0.14)] backdrop-blur-sm">
+              <p className="text-sm font-semibold text-[#4b628b]">오늘 예약</p>
+              <p className="mt-2 text-3xl font-black text-[#0f2242]">{todayCount}</p>
             </article>
-            <article className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] px-4 py-3">
-              <p className="text-xs text-[var(--muted)]">즉시 가능 Room</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">{availableRoomsCount}</p>
+            <article className="flex min-h-[108px] flex-col justify-center rounded-2xl border border-white/70 bg-white/80 px-5 py-4 shadow-[0_12px_26px_rgba(52,95,168,0.14)] backdrop-blur-sm">
+              <p className="text-sm font-semibold text-[#4b628b]">즉시 가능 ROOM</p>
+              <p className="mt-2 text-3xl font-black text-[#0f2242]">{availableRoomsCount}</p>
             </article>
           </div>
         </div>
 
         <div className="relative mt-5 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-          <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[var(--muted)]">
+          <span className="rounded-full border border-white/80 bg-white/85 px-3 py-1 text-[#51688e] shadow-sm">
             Today {formatDateLabel(todayDate)}
           </span>
         </div>
@@ -477,6 +488,8 @@ export default function HomePage() {
               <input
                 type="date"
                 required
+                min={todayDate}
+                max={maxBookingDate}
                 value={form.date}
                 onChange={(event) =>
                   setForm((previous) => ({

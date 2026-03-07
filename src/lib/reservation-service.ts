@@ -76,6 +76,17 @@ function assertDate(value: string): void {
   if (!isValidDateString(value)) {
     throw new ApiError(400, "예약 날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)");
   }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const selectedDate = new Date(year, month - 1, day);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const maxDate = new Date(today);
+  maxDate.setDate(maxDate.getDate() + 14);
+
+  if (selectedDate < today || selectedDate > maxDate) {
+    throw new ApiError(400, "예약 날짜는 오늘부터 14일 이내만 선택할 수 있습니다.");
+  }
 }
 
 function assertRoomName(value: string): asserts value is RoomName {
@@ -177,7 +188,7 @@ async function createReservationInTransaction(
       if (usedHours + durationHours > 3) {
         throw new ApiError(
           400,
-          "같은 학번은 같은 날짜에 최대 3시간까지만 예약할 수 있습니다.",
+          "같은 날짜에는 최대 3시간까지만 예약 가능합니다",
         );
       }
 
