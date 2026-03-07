@@ -448,21 +448,21 @@ export default function HomePage() {
 
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-2">
-          <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 목록</h2>
-          <div className="flex w-full items-center gap-2 sm:w-auto">
+          <h2 className="shrink-0 whitespace-nowrap text-base font-bold tracking-tight text-slate-900 sm:text-xl">예약 목록</h2>
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             <input
               type="date"
               min={todayDate}
               max={maxBookingDate}
               value={boardDate}
               onChange={(event) => setBoardDate(event.target.value)}
-              className="h-10 flex-1 rounded-xl border border-[var(--border)] bg-white px-3 text-sm sm:flex-none"
+              className="h-9 w-[132px] rounded-xl border border-[var(--border)] bg-white px-2 text-xs sm:h-10 sm:w-auto sm:px-3 sm:text-sm"
             />
             <button
               type="button"
               onClick={() => setBoardDate(todayDate)}
               disabled={boardDate === todayDate}
-              className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-9 rounded-xl border border-[var(--border)] bg-white px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:px-3 sm:text-sm"
             >
               오늘
             </button>
