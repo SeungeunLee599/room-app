@@ -121,7 +121,7 @@ function getWeekdayFromDate(value: string): number {
 
 function assertDate(value: string): void {
   if (!isValidDateString(value)) {
-    throw new ApiError(400, "예약 날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)");
+    throw new ApiError(400, "??됰튋 ?醫롮? ?類ㅻ뻼????而?몴?? ??녿뮸??덈뼄. (YYYY-MM-DD)");
   }
 
   const [year, month, day] = value.split("-").map(Number);
@@ -133,63 +133,68 @@ function assertDate(value: string): void {
   maxDate.setDate(maxDate.getDate() + 14);
 
   if (selectedDate < today || selectedDate > maxDate) {
-    throw new ApiError(400, "예약 날짜는 오늘부터 14일 이내만 선택할 수 있습니다.");
+    throw new ApiError(400, "??됰튋 ?醫롮?????삳뮎?봔??14????沅∽쭕??醫뤾문??????됰뮸??덈뼄.");
   }
 }
 
+function assertDateFormatOnly(value: string): void {
+  if (!isValidDateString(value)) {
+    throw new ApiError(400, "?덉빟 ?좎쭨 ?뺤떇???щ컮瑜댁? ?딆뒿?덈떎. (YYYY-MM-DD)");
+  }
+}
 function assertRoomName(value: string): asserts value is RoomName {
   if (!isValidRoomName(value)) {
-    throw new ApiError(400, "유효하지 않은 방 이름입니다.");
+    throw new ApiError(400, "?醫륁뒞??? ??? 獄???已??낅빍??");
   }
 }
 
 function assertPin(password: string): void {
   if (!/^\d{4}$/.test(password)) {
-    throw new ApiError(400, "비밀번호는 4자리 숫자여야 합니다.");
+    throw new ApiError(400, "??쑬?甕곕뜇???4?癒?봺 ??ъ쁽??鍮???몃빍??");
   }
 }
 
 function assertWeekday(weekday: number): void {
   if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
-    throw new ApiError(400, "요일 값이 올바르지 않습니다. (0:일요일 ~ 6:토요일)");
+    throw new ApiError(400, "?遺우뵬 揶쏅?????而?몴?? ??녿뮸??덈뼄. (0:??깆뒄??~ 6:?醫롮뒄??");
   }
 }
 
 function assertTimeRange(startHour: number, endHour: number): void {
   if (!Number.isInteger(startHour) || !Number.isInteger(endHour)) {
-    throw new ApiError(400, "시작/종료 시간은 정각 단위(정수)여야 합니다.");
+    throw new ApiError(400, "??뽰삂/?ル굝利???볦퍢?? ?類?퍟 ??μ맄(?類ㅻ땾)??鍮???몃빍??");
   }
   if (startHour < 0 || startHour > 23 || endHour < 1 || endHour > 24) {
-    throw new ApiError(400, "시간 범위는 00:00부터 24:00 사이여야 합니다.");
+    throw new ApiError(400, "??볦퍢 甕곕뗄???00:00?봔??24:00 ?????鍮???몃빍??");
   }
   if (endHour <= startHour) {
-    throw new ApiError(400, "종료 시간은 시작 시간보다 늦어야 합니다.");
+    throw new ApiError(400, "?ル굝利???볦퍢?? ??뽰삂 ??볦퍢癰귣?????堉????몃빍??");
   }
 }
 
 function assertNameAndStudent(studentId: string, name: string): void {
   if (!studentId) {
-    throw new ApiError(400, "학번을 입력하세요.");
+    throw new ApiError(400, "??뉗쓰????낆젾??뤾쉭??");
   }
   if (!name) {
-    throw new ApiError(400, "이름을 입력하세요.");
+    throw new ApiError(400, "??已????낆젾??뤾쉭??");
   }
 }
 
 function assertPhoneNumber(phoneNumber: string): void {
   if (!phoneNumber) {
-    throw new ApiError(400, "연락처를 입력해주세요.");
+    throw new ApiError(400, "?怨뺤뵭筌ｌ꼶? ??낆젾??곻폒?紐꾩뒄.");
   }
 
   const normalized = phoneNumber.replace(/[\s-]/g, "");
   if (!/^\d{8,13}$/.test(normalized)) {
-    throw new ApiError(400, "연락처 형식이 올바르지 않습니다.");
+    throw new ApiError(400, "?怨뺤뵭筌??類ㅻ뻼????而?몴?? ??녿뮸??덈뼄.");
   }
 }
 
 function assertRegisteredStudent(studentId: string, name: string): void {
   if (!isAllowedStudentName(studentId, name)) {
-    throw new ApiError(400, "등록된 학번-이름 정보와 일치하지 않습니다.");
+    throw new ApiError(400, "?源낆쨯????뉗쓰-??已??類ｋ궖?? ??깊뒄??? ??녿뮸??덈뼄.");
   }
 }
 
@@ -291,7 +296,7 @@ async function createReservationInTransaction(
       });
 
       if (blocked) {
-        throw new ApiError(409, `예약 불가 시간입니다: ${blocked.reason}`);
+        throw new ApiError(409, `??됰튋 ?븍뜃? ??볦퍢??낅빍?? ${blocked.reason}`);
       }
 
       const dateBlocked = await tx.dateBlockedSlot.findFirst({
@@ -305,7 +310,7 @@ async function createReservationInTransaction(
       });
 
       if (dateBlocked) {
-        throw new ApiError(409, `예약 불가 시간입니다: ${dateBlocked.reason}`);
+        throw new ApiError(409, `??됰튋 ?븍뜃? ??볦퍢??낅빍?? ${dateBlocked.reason}`);
       }
 
       const overlapped = await tx.reservation.findFirst({
@@ -319,7 +324,7 @@ async function createReservationInTransaction(
       });
 
       if (overlapped) {
-        throw new ApiError(409, "이미 예약된 시간입니다.");
+        throw new ApiError(409, "??? ??됰튋????볦퍢??낅빍??");
       }
 
       const usage = await tx.reservation.aggregate({
@@ -336,7 +341,7 @@ async function createReservationInTransaction(
       if (usedHours + durationHours > 3) {
         throw new ApiError(
           400,
-          "같은 날짜에는 최대 3시간까지만 예약 가능합니다",
+          "揶쏆늿? ?醫롮??癒?뮉 筌ㅼ뮆? 3??볦퍢繹먮슣?筌???됰튋 揶쎛?館鍮??덈뼄",
         );
       }
 
@@ -365,7 +370,7 @@ async function createReservationInTransaction(
       });
 
       if (!isValidRoomName(created.roomName)) {
-        throw new ApiError(500, "예약 데이터에 유효하지 않은 방 이름이 있습니다.");
+        throw new ApiError(500, "??됰튋 ?怨쀬뵠?怨쀫퓠 ?醫륁뒞??? ??? 獄???已????됰뮸??덈뼄.");
       }
 
       return {
@@ -387,7 +392,7 @@ export function parseCreateReservationInput(
   payload: unknown,
 ): CreateReservationInput {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
+    throw new ApiError(400, "?遺욧퍕 ?類ㅻ뻼????而?몴?? ??녿뮸??덈뼄.");
   }
 
   const body = payload as Record<string, unknown>;
@@ -422,7 +427,7 @@ export function parseCreateReservationInput(
 
 export function parseCreateBlockedSlotInput(payload: unknown): CreateBlockedSlotInput {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
+    throw new ApiError(400, "?遺욧퍕 ?類ㅻ뻼????而?몴?? ??녿뮸??덈뼄.");
   }
 
   const body = payload as Record<string, unknown>;
@@ -437,7 +442,7 @@ export function parseCreateBlockedSlotInput(payload: unknown): CreateBlockedSlot
   assertTimeRange(startHour, endHour);
 
   if (!reason) {
-    throw new ApiError(400, "예약 불가 사유를 입력하세요.");
+    throw new ApiError(400, "??됰튋 ?븍뜃? ???????낆젾??뤾쉭??");
   }
 
   return {
@@ -451,7 +456,7 @@ export function parseCreateBlockedSlotInput(payload: unknown): CreateBlockedSlot
 
 export function parseCreateDateBlockedSlotInput(payload: unknown): CreateDateBlockedSlotInput {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
+    throw new ApiError(400, "?遺욧퍕 ?類ㅻ뻼????而?몴?? ??녿뮸??덈뼄.");
   }
 
   const body = payload as Record<string, unknown>;
@@ -462,11 +467,11 @@ export function parseCreateDateBlockedSlotInput(payload: unknown): CreateDateBlo
   const reason = parseTrimmedString(body.reason);
 
   assertRoomName(roomName);
-  assertDate(date);
+  assertDateFormatOnly(date);
   assertTimeRange(startHour, endHour);
 
   if (!reason) {
-    throw new ApiError(400, "예약 불가 사유를 입력하세요.");
+    throw new ApiError(400, "??됰튋 ?븍뜃? ???????낆젾??뤾쉭??");
   }
 
   return {
@@ -480,7 +485,7 @@ export function parseCreateDateBlockedSlotInput(payload: unknown): CreateDateBlo
 
 export function parseCancelByUserInput(payload: unknown): CancelByUserInput {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
+    throw new ApiError(400, "?遺욧퍕 ?類ㅻ뻼????而?몴?? ??녿뮸??덈뼄.");
   }
 
   const body = payload as Record<string, unknown>;
@@ -490,7 +495,7 @@ export function parseCancelByUserInput(payload: unknown): CancelByUserInput {
   const password = parseTrimmedString(body.password);
 
   if (!Number.isInteger(reservationId) || reservationId <= 0) {
-    throw new ApiError(400, "예약 ID가 올바르지 않습니다.");
+    throw new ApiError(400, "??됰튋 ID揶쎛 ??而?몴?? ??녿뮸??덈뼄.");
   }
   assertNameAndStudent(studentId, name);
   assertPin(password);
@@ -500,25 +505,25 @@ export function parseCancelByUserInput(payload: unknown): CancelByUserInput {
 
 export function parseReservationId(payload: unknown): number {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
+    throw new ApiError(400, "?遺욧퍕 ?類ㅻ뻼????而?몴?? ??녿뮸??덈뼄.");
   }
   const body = payload as Record<string, unknown>;
   const reservationId = parseInteger(body.reservationId);
   if (!Number.isInteger(reservationId) || reservationId <= 0) {
-    throw new ApiError(400, "예약 ID가 올바르지 않습니다.");
+    throw new ApiError(400, "??됰튋 ID揶쎛 ??而?몴?? ??녿뮸??덈뼄.");
   }
   return reservationId;
 }
 
 export function parseBlockedSlotId(payload: unknown): number {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
+    throw new ApiError(400, "?遺욧퍕 ?類ㅻ뻼????而?몴?? ??녿뮸??덈뼄.");
   }
 
   const body = payload as Record<string, unknown>;
   const blockedSlotId = parseInteger(body.blockedSlotId);
   if (!Number.isInteger(blockedSlotId) || blockedSlotId <= 0) {
-    throw new ApiError(400, "차단 슬롯 ID가 올바르지 않습니다.");
+    throw new ApiError(400, "筌△뫀??????ID揶쎛 ??而?몴?? ??녿뮸??덈뼄.");
   }
 
   return blockedSlotId;
@@ -526,13 +531,13 @@ export function parseBlockedSlotId(payload: unknown): number {
 
 export function parseDateBlockedSlotId(payload: unknown): number {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
+    throw new ApiError(400, "?遺욧퍕 ?類ㅻ뻼????而?몴?? ??녿뮸??덈뼄.");
   }
 
   const body = payload as Record<string, unknown>;
   const dateBlockedSlotId = parseInteger(body.dateBlockedSlotId);
   if (!Number.isInteger(dateBlockedSlotId) || dateBlockedSlotId <= 0) {
-    throw new ApiError(400, "차단 슬롯 ID가 올바르지 않습니다.");
+    throw new ApiError(400, "筌△뫀??????ID揶쎛 ??而?몴?? ??녿뮸??덈뼄.");
   }
 
   return dateBlockedSlotId;
@@ -707,7 +712,7 @@ export async function getAdminDateBlockedSlots(
   date?: string,
 ): Promise<AdminDateBlockedSlot[]> {
   if (date) {
-    assertDate(date);
+    assertDateFormatOnly(date);
   }
 
   const dateBlockedSlots = await prisma.dateBlockedSlot.findMany({
@@ -743,7 +748,7 @@ export async function createBlockedSlot(
   });
 
   if (overlapped) {
-    throw new ApiError(409, "이미 차단된 시간과 겹칩니다.");
+    throw new ApiError(409, "??? 筌△뫀?????볦퍢??野껊?臾??덈뼄.");
   }
 
   const created = await prisma.blockedSlot.create({
@@ -767,7 +772,7 @@ export async function createBlockedSlot(
 
   const mapped = mapAdminBlockedSlot(created);
   if (!mapped) {
-    throw new ApiError(500, "차단 슬롯 생성 데이터가 올바르지 않습니다.");
+    throw new ApiError(500, "筌△뫀????????밴쉐 ?怨쀬뵠?怨? ??而?몴?? ??녿뮸??덈뼄.");
   }
 
   return mapped;
@@ -780,7 +785,7 @@ export async function deleteBlockedSlot(blockedSlotId: number): Promise<void> {
   });
 
   if (!blockedSlot) {
-    throw new ApiError(404, "차단 슬롯을 찾을 수 없습니다.");
+    throw new ApiError(404, "筌△뫀???????筌≪뼚??????곷뮸??덈뼄.");
   }
 
   await prisma.blockedSlot.delete({
@@ -802,7 +807,7 @@ export async function createDateBlockedSlot(
   });
 
   if (overlappedWeekly) {
-    throw new ApiError(409, "이미 차단된 시간과 겹칩니다.");
+    throw new ApiError(409, "??? 筌△뫀?????볦퍢??野껊?臾??덈뼄.");
   }
 
   const overlappedDate = await prisma.dateBlockedSlot.findFirst({
@@ -816,7 +821,7 @@ export async function createDateBlockedSlot(
   });
 
   if (overlappedDate) {
-    throw new ApiError(409, "이미 차단된 시간과 겹칩니다.");
+    throw new ApiError(409, "??? 筌△뫀?????볦퍢??野껊?臾??덈뼄.");
   }
 
   const created = await prisma.dateBlockedSlot.create({
@@ -840,7 +845,7 @@ export async function createDateBlockedSlot(
 
   const mapped = mapAdminDateBlockedSlot(created);
   if (!mapped) {
-    throw new ApiError(500, "李⑤떒 ?щ’ ?앹꽦 ?곗씠?곌? ?щ컮瑜댁? ?딆뒿?덈떎.");
+    throw new ApiError(500, "嶺뚢뼰維????????諛댁뎽 ??⑥щ턄??? ????紐?? ???용????덈펲.");
   }
 
   return mapped;
@@ -853,7 +858,7 @@ export async function deleteDateBlockedSlot(dateBlockedSlotId: number): Promise<
   });
 
   if (!slot) {
-    throw new ApiError(404, "李⑤떒 ?щ’??李얠쓣 ???놁뒿?덈떎.");
+    throw new ApiError(404, "嶺뚢뼰維???????嶺뚢돦堉??????怨룸????덈펲.");
   }
 
   await prisma.dateBlockedSlot.delete({
@@ -882,7 +887,7 @@ export async function createReservation(
     }
   }
 
-  throw new ApiError(500, "예약 처리 중 일시적인 충돌이 반복되었습니다. 다시 시도하세요.");
+  throw new ApiError(500, "??됰튋 筌ｌ꼶??餓???깅뻻?怨몄뵥 ?겸뫖猷??獄쏆꼶???뤿???щ빍?? ??쇰뻻 ??뺣즲??뤾쉭??");
 }
 
 export async function cancelReservationByUser(
@@ -899,19 +904,19 @@ export async function cancelReservationByUser(
   });
 
   if (!reservation) {
-    throw new ApiError(404, "예약을 찾을 수 없습니다.");
+    throw new ApiError(404, "??됰튋??筌≪뼚??????곷뮸??덈뼄.");
   }
 
   if (
     reservation.studentId !== input.studentId ||
     reservation.name !== input.name
   ) {
-    throw new ApiError(401, "학번 또는 이름이 일치하지 않습니다.");
+    throw new ApiError(401, "??뉗쓰 ?癒?뮉 ??已????깊뒄??? ??녿뮸??덈뼄.");
   }
 
   const passwordMatched = await compare(input.password, reservation.passwordHash);
   if (!passwordMatched) {
-    throw new ApiError(401, "비밀번호가 일치하지 않습니다.");
+    throw new ApiError(401, "??쑬?甕곕뜇?뉐첎? ??깊뒄??? ??녿뮸??덈뼄.");
   }
 
   await prisma.reservation.delete({
@@ -926,7 +931,7 @@ export async function cancelReservationAsAdmin(reservationId: number): Promise<v
   });
 
   if (!reservation) {
-    throw new ApiError(404, "예약을 찾을 수 없습니다.");
+    throw new ApiError(404, "??됰튋??筌≪뼚??????곷뮸??덈뼄.");
   }
 
   await prisma.reservation.delete({

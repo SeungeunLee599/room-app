@@ -534,7 +534,10 @@ export default function HomePage() {
       <section className="grid gap-6 xl:grid-cols-[1.05fr_1fr]">
         <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 신청</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 신청</h2>
+              <p className="text-xs text-slate-500">하루 최대 3시간까지 예약 가능합니다.</p>
+            </div>
             <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
               NEW BOOKING
             </span>
@@ -723,9 +726,6 @@ export default function HomePage() {
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             예약 가능: {24 - Array.from(hourStates.values()).filter((state) => state !== "open").length}시간
           </div>
-          <p className="mt-2 text-xs text-slate-500">
-            하루 최대 3시간까지 예약 가능합니다.
-          </p>
         </article>
       </section>
 
@@ -816,7 +816,7 @@ export default function HomePage() {
                 <th className="px-4 py-3 font-semibold">날짜</th>
                 <th className="px-4 py-3 font-semibold">시간</th>
                 <th className="px-4 py-3 font-semibold">이름/사유</th>
-                <th className="px-4 py-3 font-semibold">작업</th>
+                <th className="px-4 py-3 font-semibold">취소</th>
               </tr>
             </thead>
             <tbody className="bg-white">

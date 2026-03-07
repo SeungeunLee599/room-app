@@ -732,7 +732,7 @@ export default function AdminPage() {
         <>
           <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
             <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900">예약 불가 시간 등록</h2>
+              <h2 className="text-lg font-bold text-slate-900">예약 불가 시간대 등록</h2>
               <form className="mt-4 grid gap-3" onSubmit={onSubmitBlockedSlot}>
                 <select value={blockedForm.roomName} onChange={(event) => setBlockedForm((previous) => ({ ...previous, roomName: event.target.value as RoomName }))} className="h-11 rounded-xl border border-[var(--border)] bg-white px-3">
                   {ROOM_NAMES.map((roomName) => (
@@ -800,7 +800,7 @@ export default function AdminPage() {
 
           <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
             <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900">일회성 차단 시간 등록</h2>
+              <h2 className="text-lg font-bold text-slate-900">일회성 예약 불가 시간 등록</h2>
               <form className="mt-4 grid gap-3" onSubmit={onSubmitDateBlockedSlot}>
                 <select
                   value={dateBlockedForm.roomName}
