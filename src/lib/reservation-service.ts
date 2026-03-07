@@ -53,6 +53,16 @@ export type AdminBlockedSlot = {
   createdAt: Date;
 };
 
+export type AdminDateBlockedSlot = {
+  id: number;
+  roomName: RoomName;
+  date: string;
+  startHour: number;
+  endHour: number;
+  reason: string;
+  createdAt: Date;
+};
+
 type CreateReservationInput = {
   studentId: string;
   name: string;
@@ -67,6 +77,14 @@ type CreateReservationInput = {
 type CreateBlockedSlotInput = {
   roomName: RoomName;
   weekday: number;
+  startHour: number;
+  endHour: number;
+  reason: string;
+};
+
+type CreateDateBlockedSlotInput = {
+  roomName: RoomName;
+  date: string;
   startHour: number;
   endHour: number;
   reason: string;
@@ -203,6 +221,30 @@ function mapAdminBlockedSlot(slot: {
   };
 }
 
+function mapAdminDateBlockedSlot(slot: {
+  id: number;
+  roomName: string;
+  date: string;
+  startHour: number;
+  endHour: number;
+  reason: string;
+  createdAt: Date;
+}): AdminDateBlockedSlot | null {
+  if (!isValidRoomName(slot.roomName)) {
+    return null;
+  }
+
+  return {
+    id: slot.id,
+    roomName: slot.roomName,
+    date: slot.date,
+    startHour: slot.startHour,
+    endHour: slot.endHour,
+    reason: slot.reason,
+    createdAt: slot.createdAt,
+  };
+}
+
 function isPublicRoomName(value: string): value is RoomName {
   return isValidRoomName(value);
 }
@@ -250,6 +292,20 @@ async function createReservationInTransaction(
 
       if (blocked) {
         throw new ApiError(409, `예약 불가 시간입니다: ${blocked.reason}`);
+      }
+
+      const dateBlocked = await tx.dateBlockedSlot.findFirst({
+        where: {
+          roomName: input.roomName,
+          date: input.date,
+          startHour: { lt: input.endHour },
+          endHour: { gt: input.startHour },
+        },
+        select: { id: true, reason: true },
+      });
+
+      if (dateBlocked) {
+        throw new ApiError(409, `예약 불가 시간입니다: ${dateBlocked.reason}`);
       }
 
       const overlapped = await tx.reservation.findFirst({
@@ -393,6 +449,35 @@ export function parseCreateBlockedSlotInput(payload: unknown): CreateBlockedSlot
   };
 }
 
+export function parseCreateDateBlockedSlotInput(payload: unknown): CreateDateBlockedSlotInput {
+  if (!payload || typeof payload !== "object") {
+    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
+  }
+
+  const body = payload as Record<string, unknown>;
+  const roomName = parseTrimmedString(body.roomName);
+  const date = parseTrimmedString(body.date);
+  const startHour = parseInteger(body.startHour);
+  const endHour = parseInteger(body.endHour);
+  const reason = parseTrimmedString(body.reason);
+
+  assertRoomName(roomName);
+  assertDate(date);
+  assertTimeRange(startHour, endHour);
+
+  if (!reason) {
+    throw new ApiError(400, "예약 불가 사유를 입력하세요.");
+  }
+
+  return {
+    roomName,
+    date,
+    startHour,
+    endHour,
+    reason,
+  };
+}
+
 export function parseCancelByUserInput(payload: unknown): CancelByUserInput {
   if (!payload || typeof payload !== "object") {
     throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
@@ -439,6 +524,20 @@ export function parseBlockedSlotId(payload: unknown): number {
   return blockedSlotId;
 }
 
+export function parseDateBlockedSlotId(payload: unknown): number {
+  if (!payload || typeof payload !== "object") {
+    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
+  }
+
+  const body = payload as Record<string, unknown>;
+  const dateBlockedSlotId = parseInteger(body.dateBlockedSlotId);
+  if (!Number.isInteger(dateBlockedSlotId) || dateBlockedSlotId <= 0) {
+    throw new ApiError(400, "차단 슬롯 ID가 올바르지 않습니다.");
+  }
+
+  return dateBlockedSlotId;
+}
+
 export async function getPublicReservationsByDate(
   date: string,
 ): Promise<PublicReservation[]> {
@@ -467,6 +566,20 @@ export async function getPublicReservationsByDate(
       id: true,
       roomName: true,
       weekday: true,
+      startHour: true,
+      endHour: true,
+      reason: true,
+      createdAt: true,
+    },
+  });
+
+  const dateBlockedSlots = await prisma.dateBlockedSlot.findMany({
+    where: { date },
+    orderBy: [{ roomName: "asc" }, { startHour: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      roomName: true,
+      date: true,
       startHour: true,
       endHour: true,
       reason: true,
@@ -508,7 +621,24 @@ export async function getPublicReservationsByDate(
       blockedReason: slot.reason,
     }));
 
-  return [...mappedReservations, ...mappedBlocked].sort((a, b) => {
+  const mappedDateBlocked: PublicReservation[] = dateBlockedSlots
+    .filter((slot): slot is typeof slot & { roomName: RoomName } =>
+      isPublicRoomName(slot.roomName),
+    )
+    .map((slot) => ({
+      id: slot.id,
+      roomName: slot.roomName,
+      date: slot.date,
+      startHour: slot.startHour,
+      endHour: slot.endHour,
+      durationHours: slot.endHour - slot.startHour,
+      name: slot.reason,
+      createdAt: slot.createdAt,
+      isBlocked: true,
+      blockedReason: slot.reason,
+    }));
+
+  return [...mappedReservations, ...mappedBlocked, ...mappedDateBlocked].sort((a, b) => {
     const roomDiff = (ROOM_ORDER.get(a.roomName) ?? 999) - (ROOM_ORDER.get(b.roomName) ?? 999);
     if (roomDiff !== 0) {
       return roomDiff;
@@ -573,6 +703,32 @@ export async function getAdminBlockedSlots(
     .filter((slot): slot is AdminBlockedSlot => slot !== null);
 }
 
+export async function getAdminDateBlockedSlots(
+  date?: string,
+): Promise<AdminDateBlockedSlot[]> {
+  if (date) {
+    assertDate(date);
+  }
+
+  const dateBlockedSlots = await prisma.dateBlockedSlot.findMany({
+    where: date ? { date } : undefined,
+    orderBy: [{ date: "asc" }, { roomName: "asc" }, { startHour: "asc" }],
+    select: {
+      id: true,
+      roomName: true,
+      date: true,
+      startHour: true,
+      endHour: true,
+      reason: true,
+      createdAt: true,
+    },
+  });
+
+  return dateBlockedSlots
+    .map(mapAdminDateBlockedSlot)
+    .filter((slot): slot is AdminDateBlockedSlot => slot !== null);
+}
+
 export async function createBlockedSlot(
   input: CreateBlockedSlotInput,
 ): Promise<AdminBlockedSlot> {
@@ -629,6 +785,79 @@ export async function deleteBlockedSlot(blockedSlotId: number): Promise<void> {
 
   await prisma.blockedSlot.delete({
     where: { id: blockedSlotId },
+  });
+}
+
+export async function createDateBlockedSlot(
+  input: CreateDateBlockedSlotInput,
+): Promise<AdminDateBlockedSlot> {
+  const overlappedWeekly = await prisma.blockedSlot.findFirst({
+    where: {
+      roomName: input.roomName,
+      weekday: getWeekdayFromDate(input.date),
+      startHour: { lt: input.endHour },
+      endHour: { gt: input.startHour },
+    },
+    select: { id: true },
+  });
+
+  if (overlappedWeekly) {
+    throw new ApiError(409, "이미 차단된 시간과 겹칩니다.");
+  }
+
+  const overlappedDate = await prisma.dateBlockedSlot.findFirst({
+    where: {
+      roomName: input.roomName,
+      date: input.date,
+      startHour: { lt: input.endHour },
+      endHour: { gt: input.startHour },
+    },
+    select: { id: true },
+  });
+
+  if (overlappedDate) {
+    throw new ApiError(409, "이미 차단된 시간과 겹칩니다.");
+  }
+
+  const created = await prisma.dateBlockedSlot.create({
+    data: {
+      roomName: input.roomName,
+      date: input.date,
+      startHour: input.startHour,
+      endHour: input.endHour,
+      reason: input.reason,
+    },
+    select: {
+      id: true,
+      roomName: true,
+      date: true,
+      startHour: true,
+      endHour: true,
+      reason: true,
+      createdAt: true,
+    },
+  });
+
+  const mapped = mapAdminDateBlockedSlot(created);
+  if (!mapped) {
+    throw new ApiError(500, "李⑤떒 ?щ’ ?앹꽦 ?곗씠?곌? ?щ컮瑜댁? ?딆뒿?덈떎.");
+  }
+
+  return mapped;
+}
+
+export async function deleteDateBlockedSlot(dateBlockedSlotId: number): Promise<void> {
+  const slot = await prisma.dateBlockedSlot.findUnique({
+    where: { id: dateBlockedSlotId },
+    select: { id: true },
+  });
+
+  if (!slot) {
+    throw new ApiError(404, "李⑤떒 ?щ’??李얠쓣 ???놁뒿?덈떎.");
+  }
+
+  await prisma.dateBlockedSlot.delete({
+    where: { id: dateBlockedSlotId },
   });
 }
 

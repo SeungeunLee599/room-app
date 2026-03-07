@@ -37,6 +37,18 @@ model BlockedSlot {
   @@index([weekday, roomName, startHour])
 }
 
+model DateBlockedSlot {
+  id        Int      @id @default(autoincrement())
+  roomName  String
+  date      String
+  startHour Int
+  endHour   Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([date, roomName, startHour])
+}
+
 model Notice {
   id        Int      @id @default(autoincrement())
   title     String

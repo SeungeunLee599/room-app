@@ -28,6 +28,16 @@ type AdminBlockedSlot = {
   createdAt: string;
 };
 
+type AdminDateBlockedSlot = {
+  id: number;
+  roomName: RoomName;
+  date: string;
+  startHour: number;
+  endHour: number;
+  reason: string;
+  createdAt: string;
+};
+
 type BoardNotice = {
   id: number;
   title: string;
@@ -44,6 +54,14 @@ type Notice = {
 type BlockedSlotForm = {
   roomName: RoomName;
   weekday: string;
+  startHour: string;
+  endHour: string;
+  reason: string;
+};
+
+type DateBlockedSlotForm = {
+  roomName: RoomName;
+  date: string;
   startHour: string;
   endHour: string;
   reason: string;
@@ -118,6 +136,19 @@ function sortBlockedSlots(items: AdminBlockedSlot[]): AdminBlockedSlot[] {
   });
 }
 
+function sortDateBlockedSlots(items: AdminDateBlockedSlot[]): AdminDateBlockedSlot[] {
+  return [...items].sort((a, b) => {
+    if (a.date !== b.date) {
+      return a.date.localeCompare(b.date);
+    }
+    const roomDiff = (ROOM_ORDER.get(a.roomName) ?? 999) - (ROOM_ORDER.get(b.roomName) ?? 999);
+    if (roomDiff !== 0) {
+      return roomDiff;
+    }
+    return a.startHour - b.startHour;
+  });
+}
+
 async function fetchAdminReservations(args: {
   password: string;
   dateFilter?: string;
@@ -180,6 +211,37 @@ async function fetchAdminBlockedSlots(password: string): Promise<{
   };
 }
 
+async function fetchAdminDateBlockedSlots(password: string): Promise<{
+  ok: boolean;
+  message?: string;
+  dateBlockedSlots: AdminDateBlockedSlot[];
+}> {
+  const response = await fetch("/api/admin/date-blocked-slots", {
+    cache: "no-store",
+    headers: {
+      "x-admin-password": password,
+    },
+  });
+
+  const data = (await response.json()) as {
+    message?: string;
+    dateBlockedSlots?: AdminDateBlockedSlot[];
+  };
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      message: data.message ?? "일회성 차단 시간 목록을 불러오지 못했습니다.",
+      dateBlockedSlots: [],
+    };
+  }
+
+  return {
+    ok: true,
+    dateBlockedSlots: data.dateBlockedSlots ?? [],
+  };
+}
+
 async function fetchAdminNotices(password: string): Promise<{
   ok: boolean;
   message?: string;
@@ -225,11 +287,19 @@ export default function AdminPage() {
 
   const [reservations, setReservations] = useState<AdminReservation[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<AdminBlockedSlot[]>([]);
+  const [dateBlockedSlots, setDateBlockedSlots] = useState<AdminDateBlockedSlot[]>([]);
   const [boardNotices, setBoardNotices] = useState<BoardNotice[]>([]);
 
   const [blockedForm, setBlockedForm] = useState<BlockedSlotForm>({
     roomName: ROOM_NAMES[0],
     weekday: "1",
+    startHour: "",
+    endHour: "",
+    reason: "",
+  });
+  const [dateBlockedForm, setDateBlockedForm] = useState<DateBlockedSlotForm>({
+    roomName: ROOM_NAMES[0],
+    date: todayDate,
     startHour: "",
     endHour: "",
     reason: "",
@@ -249,21 +319,23 @@ export default function AdminPage() {
     setLoading(true);
     setNotice(null);
 
-    const [reservationResult, blockedResult, noticesResult] = await Promise.all([
+    const [reservationResult, blockedResult, dateBlockedResult, noticesResult] = await Promise.all([
       fetchAdminReservations({
         password: adminPassword,
         dateFilter: useDateFilter ? dateFilter : undefined,
       }),
       fetchAdminBlockedSlots(adminPassword),
+      fetchAdminDateBlockedSlots(adminPassword),
       fetchAdminNotices(adminPassword),
     ]);
 
-    if (!reservationResult.ok || !blockedResult.ok || !noticesResult.ok) {
+    if (!reservationResult.ok || !blockedResult.ok || !dateBlockedResult.ok || !noticesResult.ok) {
       setNotice({
         kind: "error",
         text:
           reservationResult.message ??
           blockedResult.message ??
+          dateBlockedResult.message ??
           noticesResult.message ??
           "관리자 데이터를 불러오지 못했습니다.",
       });
@@ -273,6 +345,7 @@ export default function AdminPage() {
 
     setReservations(sortReservations(reservationResult.reservations));
     setBlockedSlots(sortBlockedSlots(blockedResult.blockedSlots));
+    setDateBlockedSlots(sortDateBlockedSlots(dateBlockedResult.dateBlockedSlots));
     setBoardNotices(noticesResult.notices);
     setLoading(false);
   };
@@ -292,16 +365,17 @@ export default function AdminPage() {
     setLoading(true);
     setNotice(null);
 
-    const [reservationResult, blockedResult, noticesResult] = await Promise.all([
+    const [reservationResult, blockedResult, dateBlockedResult, noticesResult] = await Promise.all([
       fetchAdminReservations({
         password: adminPassword,
         dateFilter: useDateFilter ? dateFilter : undefined,
       }),
       fetchAdminBlockedSlots(adminPassword),
+      fetchAdminDateBlockedSlots(adminPassword),
       fetchAdminNotices(adminPassword),
     ]);
 
-    if (!reservationResult.ok || !blockedResult.ok || !noticesResult.ok) {
+    if (!reservationResult.ok || !blockedResult.ok || !dateBlockedResult.ok || !noticesResult.ok) {
       setNotice({ kind: "error", text: "관리자 인증에 실패했습니다." });
       setAuthenticated(false);
       setLoading(false);
@@ -311,6 +385,7 @@ export default function AdminPage() {
     setAuthenticated(true);
     setReservations(sortReservations(reservationResult.reservations));
     setBlockedSlots(sortBlockedSlots(blockedResult.blockedSlots));
+    setDateBlockedSlots(sortDateBlockedSlots(dateBlockedResult.dateBlockedSlots));
     setBoardNotices(noticesResult.notices);
     setNotice({ kind: "success", text: "관리자 인증이 완료되었습니다." });
     setLoading(false);
@@ -418,6 +493,83 @@ export default function AdminPage() {
     }
 
     setNotice({ kind: "success", text: data.message ?? "차단 시간이 삭제되었습니다." });
+    setRefreshKey((previous) => previous + 1);
+    setLoading(false);
+  };
+
+  const onSubmitDateBlockedSlot = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!authenticated) {
+      return;
+    }
+
+    const startHour = Number(dateBlockedForm.startHour);
+    const endHour = Number(dateBlockedForm.endHour);
+    if (!Number.isInteger(startHour) || !Number.isInteger(endHour)) {
+      setNotice({ kind: "error", text: "차단 시작/종료 시간을 선택하세요." });
+      return;
+    }
+
+    setLoading(true);
+    setNotice(null);
+
+    const response = await fetch("/api/admin/date-blocked-slots", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        adminPassword,
+        roomName: dateBlockedForm.roomName,
+        date: dateBlockedForm.date,
+        startHour,
+        endHour,
+        reason: dateBlockedForm.reason,
+      }),
+    });
+
+    const data = (await response.json()) as { message?: string };
+    if (!response.ok) {
+      setNotice({ kind: "error", text: data.message ?? "일회성 차단 시간 등록에 실패했습니다." });
+      setLoading(false);
+      return;
+    }
+
+    setNotice({ kind: "success", text: data.message ?? "일회성 차단 시간이 등록되었습니다." });
+    setDateBlockedForm((previous) => ({
+      ...previous,
+      startHour: "",
+      endHour: "",
+      reason: "",
+    }));
+    setRefreshKey((previous) => previous + 1);
+    setLoading(false);
+  };
+
+  const onDeleteDateBlockedSlot = async (dateBlockedSlotId: number) => {
+    if (!authenticated) {
+      return;
+    }
+
+    setLoading(true);
+    setNotice(null);
+
+    const response = await fetch("/api/admin/date-blocked-slots", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ dateBlockedSlotId, adminPassword }),
+    });
+
+    const data = (await response.json()) as { message?: string };
+    if (!response.ok) {
+      setNotice({ kind: "error", text: data.message ?? "일회성 차단 시간 삭제에 실패했습니다." });
+      setLoading(false);
+      return;
+    }
+
+    setNotice({ kind: "success", text: data.message ?? "일회성 차단 시간이 삭제되었습니다." });
     setRefreshKey((previous) => previous + 1);
     setLoading(false);
   };
@@ -637,6 +789,140 @@ export default function AdminPage() {
                           <td className="px-3 py-3">{rangeLabel(slot.startHour, slot.endHour)}</td>
                           <td className="px-3 py-3">{slot.reason}</td>
                           <td className="px-3 py-3"><button type="button" onClick={() => onDeleteBlockedSlot(slot.id)} className="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-700">삭제</button></td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+
+          <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">일회성 차단 시간 등록</h2>
+              <form className="mt-4 grid gap-3" onSubmit={onSubmitDateBlockedSlot}>
+                <select
+                  value={dateBlockedForm.roomName}
+                  onChange={(event) =>
+                    setDateBlockedForm((previous) => ({
+                      ...previous,
+                      roomName: event.target.value as RoomName,
+                    }))
+                  }
+                  className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+                >
+                  {ROOM_NAMES.map((roomName) => (
+                    <option key={roomName} value={roomName}>
+                      {roomName}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    type="date"
+                    value={dateBlockedForm.date}
+                    onChange={(event) =>
+                      setDateBlockedForm((previous) => ({
+                        ...previous,
+                        date: event.target.value,
+                      }))
+                    }
+                    className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+                    required
+                  />
+                  <select
+                    value={dateBlockedForm.startHour}
+                    onChange={(event) =>
+                      setDateBlockedForm((previous) => ({
+                        ...previous,
+                        startHour: event.target.value,
+                        endHour: "",
+                      }))
+                    }
+                    className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+                    required
+                  >
+                    <option value="">시작</option>
+                    {START_HOURS.map((hour) => (
+                      <option key={hour} value={hour}>
+                        {hourLabel(hour)}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={dateBlockedForm.endHour}
+                    onChange={(event) =>
+                      setDateBlockedForm((previous) => ({ ...previous, endHour: event.target.value }))
+                    }
+                    className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+                    required
+                  >
+                    <option value="">종료</option>
+                    {END_HOURS.map((hour) => {
+                      const startHour = Number(dateBlockedForm.startHour);
+                      const invalid = !Number.isInteger(startHour) || hour <= startHour;
+                      return (
+                        <option key={hour} value={hour} disabled={invalid}>
+                          {hourLabel(hour)}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <input
+                  required
+                  value={dateBlockedForm.reason}
+                  onChange={(event) =>
+                    setDateBlockedForm((previous) => ({ ...previous, reason: event.target.value }))
+                  }
+                  placeholder="예약 불가 사유"
+                  className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+                />
+                <button type="submit" disabled={loading} className="h-11 rounded-xl bg-amber-500 font-semibold text-white">
+                  일회성 차단 등록
+                </button>
+              </form>
+            </article>
+
+            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">일회성 차단 목록</h2>
+              <div className="mt-4 overflow-x-auto rounded-2xl border border-[var(--border)]">
+                <table className="min-w-full border-collapse text-sm">
+                  <thead className="bg-[var(--card-soft)] text-slate-700">
+                    <tr className="border-b border-[var(--border)] text-left">
+                      <th className="px-3 py-3 font-semibold">날짜</th>
+                      <th className="px-3 py-3 font-semibold">방</th>
+                      <th className="px-3 py-3 font-semibold">시간</th>
+                      <th className="px-3 py-3 font-semibold">사유</th>
+                      <th className="px-3 py-3 font-semibold">작업</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    {dateBlockedSlots.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-3 py-6 text-center text-[var(--muted)]">
+                          등록된 일회성 차단 시간이 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      dateBlockedSlots.map((slot) => (
+                        <tr key={slot.id} className="border-b border-[var(--border)] last:border-b-0">
+                          <td className="px-3 py-3">{slot.date}</td>
+                          <td className="px-3 py-3">{slot.roomName}</td>
+                          <td className="px-3 py-3">{rangeLabel(slot.startHour, slot.endHour)}</td>
+                          <td className="px-3 py-3">{slot.reason}</td>
+                          <td className="px-3 py-3">
+                            <button
+                              type="button"
+                              onClick={() => onDeleteDateBlockedSlot(slot.id)}
+                              className="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-700"
+                            >
+                              삭제
+                            </button>
+                          </td>
                         </tr>
                       ))
                     )}
