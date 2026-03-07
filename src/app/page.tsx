@@ -18,7 +18,15 @@ type PublicReservation = {
   blockedReason: string | null;
 };
 
-type Notice = {
+type BoardNotice = {
+  id: number;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AlertNotice = {
   kind: "success" | "error";
   text: string;
 };
@@ -76,7 +84,6 @@ function buildHourStates(
         states.set(hour, "blocked");
         continue;
       }
-
       if (!states.has(hour)) {
         states.set(hour, "reserved");
       }
@@ -110,10 +117,12 @@ function findBlockedConflict(
     if (!reservation.isBlocked || reservation.roomName !== roomName) {
       continue;
     }
+
     if (reservation.startHour < endHour && reservation.endHour > startHour) {
       return reservation;
     }
   }
+
   return null;
 }
 
@@ -153,6 +162,24 @@ async function fetchReservationsByDate(
   };
 }
 
+async function fetchNotices(): Promise<{ ok: boolean; message?: string; notices: BoardNotice[] }> {
+  const response = await fetch("/api/notices", { cache: "no-store" });
+  const data = (await response.json()) as { message?: string; notices?: BoardNotice[] };
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      message: data.message ?? "공지사항을 불러오지 못했습니다.",
+      notices: [],
+    };
+  }
+
+  return {
+    ok: true,
+    notices: data.notices ?? [],
+  };
+}
+
 export default function HomePage() {
   const todayDate = useMemo(() => getLocalDateString(), []);
   const maxBookingDate = useMemo(() => {
@@ -165,6 +192,7 @@ export default function HomePage() {
   const [viewDate, setViewDate] = useState(todayDate);
   const [viewReservations, setViewReservations] = useState<PublicReservation[]>([]);
   const [bookingDateReservations, setBookingDateReservations] = useState<PublicReservation[]>([]);
+  const [boardNotices, setBoardNotices] = useState<BoardNotice[]>([]);
 
   const [form, setForm] = useState<ReservationForm>({
     studentId: "",
@@ -183,7 +211,7 @@ export default function HomePage() {
     password: "",
   });
 
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const [notice, setNotice] = useState<AlertNotice | null>(null);
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [loadingCancel, setLoadingCancel] = useState(false);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
@@ -251,6 +279,26 @@ export default function HomePage() {
       active = false;
     };
   }, [form.date, refreshKey]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadNotices = async () => {
+      const result = await fetchNotices();
+      if (!active) {
+        return;
+      }
+      if (result.ok) {
+        setBoardNotices(result.notices);
+      }
+    };
+
+    void loadNotices();
+
+    return () => {
+      active = false;
+    };
+  }, [refreshKey]);
 
   const hourStates = useMemo(
     () => buildHourStates(bookingDateReservations, form.roomName),
@@ -735,6 +783,39 @@ export default function HomePage() {
               )}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">공지사항</h2>
+          <span className="text-sm text-[var(--muted)]">총 {boardNotices.length}개</span>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {boardNotices.length === 0 ? (
+            <p className="col-span-full rounded-xl border border-dashed border-[var(--border)] bg-[var(--card-soft)] px-4 py-8 text-center text-sm text-[var(--muted)]">
+              등록된 공지사항이 없습니다.
+            </p>
+          ) : (
+            boardNotices.map((item, index) => (
+              <article
+                key={item.id}
+                className={`relative rounded-2xl border border-amber-200 bg-[#fff4b8] p-4 shadow-[0_10px_24px_rgba(214,171,70,0.24)] ${
+                  index % 3 === 0 ? "rotate-[-1deg]" : index % 3 === 1 ? "rotate-[1deg]" : "rotate-[-0.6deg]"
+                }`}
+              >
+                <div className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-amber-300" />
+                <h3 className="pr-4 text-base font-bold text-amber-900">{item.title}</h3>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-amber-900/90">
+                  {item.content}
+                </p>
+                <p className="mt-3 text-xs text-amber-800/70">
+                  수정 {new Date(item.updatedAt).toLocaleDateString("ko-KR")}
+                </p>
+              </article>
+            ))
+          )}
         </div>
       </section>
 

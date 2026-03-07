@@ -27,6 +27,14 @@ type AdminBlockedSlot = {
   createdAt: string;
 };
 
+type BoardNotice = {
+  id: number;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type Notice = {
   kind: "success" | "error";
   text: string;
@@ -38,6 +46,11 @@ type BlockedSlotForm = {
   startHour: string;
   endHour: string;
   reason: string;
+};
+
+type NoticeForm = {
+  title: string;
+  content: string;
 };
 
 const ROOM_ORDER = new Map(ROOM_NAMES.map((name, index) => [name, index]));
@@ -166,6 +179,37 @@ async function fetchAdminBlockedSlots(password: string): Promise<{
   };
 }
 
+async function fetchAdminNotices(password: string): Promise<{
+  ok: boolean;
+  message?: string;
+  notices: BoardNotice[];
+}> {
+  const response = await fetch("/api/admin/notices", {
+    cache: "no-store",
+    headers: {
+      "x-admin-password": password,
+    },
+  });
+
+  const data = (await response.json()) as {
+    message?: string;
+    notices?: BoardNotice[];
+  };
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      message: data.message ?? "공지사항 목록을 불러오지 못했습니다.",
+      notices: [],
+    };
+  }
+
+  return {
+    ok: true,
+    notices: data.notices ?? [],
+  };
+}
+
 export default function AdminPage() {
   const todayDate = useMemo(() => getLocalDateString(), []);
 
@@ -180,6 +224,8 @@ export default function AdminPage() {
 
   const [reservations, setReservations] = useState<AdminReservation[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<AdminBlockedSlot[]>([]);
+  const [boardNotices, setBoardNotices] = useState<BoardNotice[]>([]);
+
   const [blockedForm, setBlockedForm] = useState<BlockedSlotForm>({
     roomName: ROOM_NAMES[0],
     weekday: "1",
@@ -187,6 +233,12 @@ export default function AdminPage() {
     endHour: "",
     reason: "",
   });
+
+  const [noticeForm, setNoticeForm] = useState<NoticeForm>({
+    title: "",
+    content: "",
+  });
+  const [editingNoticeId, setEditingNoticeId] = useState<number | null>(null);
 
   const loadAdminData = async () => {
     if (!authenticated) {
@@ -196,31 +248,31 @@ export default function AdminPage() {
     setLoading(true);
     setNotice(null);
 
-    const [reservationResult, blockedResult] = await Promise.all([
+    const [reservationResult, blockedResult, noticesResult] = await Promise.all([
       fetchAdminReservations({
         password: adminPassword,
         dateFilter: useDateFilter ? dateFilter : undefined,
       }),
       fetchAdminBlockedSlots(adminPassword),
+      fetchAdminNotices(adminPassword),
     ]);
 
-    if (!reservationResult.ok) {
-      setNotice({ kind: "error", text: reservationResult.message ?? "예약 목록을 불러오지 못했습니다." });
-      setReservations([]);
-      setLoading(false);
-      return;
-    }
-
-    if (!blockedResult.ok) {
-      setNotice({ kind: "error", text: blockedResult.message ?? "차단 시간 목록을 불러오지 못했습니다." });
-      setBlockedSlots([]);
-      setReservations(sortReservations(reservationResult.reservations));
+    if (!reservationResult.ok || !blockedResult.ok || !noticesResult.ok) {
+      setNotice({
+        kind: "error",
+        text:
+          reservationResult.message ??
+          blockedResult.message ??
+          noticesResult.message ??
+          "관리자 데이터를 불러오지 못했습니다.",
+      });
       setLoading(false);
       return;
     }
 
     setReservations(sortReservations(reservationResult.reservations));
     setBlockedSlots(sortBlockedSlots(blockedResult.blockedSlots));
+    setBoardNotices(noticesResult.notices);
     setLoading(false);
   };
 
@@ -239,28 +291,18 @@ export default function AdminPage() {
     setLoading(true);
     setNotice(null);
 
-    const [reservationResult, blockedResult] = await Promise.all([
+    const [reservationResult, blockedResult, noticesResult] = await Promise.all([
       fetchAdminReservations({
         password: adminPassword,
         dateFilter: useDateFilter ? dateFilter : undefined,
       }),
       fetchAdminBlockedSlots(adminPassword),
+      fetchAdminNotices(adminPassword),
     ]);
 
-    if (!reservationResult.ok) {
-      setNotice({ kind: "error", text: reservationResult.message ?? "관리자 인증에 실패했습니다." });
+    if (!reservationResult.ok || !blockedResult.ok || !noticesResult.ok) {
+      setNotice({ kind: "error", text: "관리자 인증에 실패했습니다." });
       setAuthenticated(false);
-      setReservations([]);
-      setBlockedSlots([]);
-      setLoading(false);
-      return;
-    }
-
-    if (!blockedResult.ok) {
-      setNotice({ kind: "error", text: blockedResult.message ?? "관리자 인증에 실패했습니다." });
-      setAuthenticated(false);
-      setReservations([]);
-      setBlockedSlots([]);
       setLoading(false);
       return;
     }
@@ -268,6 +310,7 @@ export default function AdminPage() {
     setAuthenticated(true);
     setReservations(sortReservations(reservationResult.reservations));
     setBlockedSlots(sortBlockedSlots(blockedResult.blockedSlots));
+    setBoardNotices(noticesResult.notices);
     setNotice({ kind: "success", text: "관리자 인증이 완료되었습니다." });
     setLoading(false);
   };
@@ -289,7 +332,6 @@ export default function AdminPage() {
     });
 
     const data = (await response.json()) as { message?: string };
-
     if (!response.ok) {
       setNotice({ kind: "error", text: data.message ?? "예약 취소에 실패했습니다." });
       setLoading(false);
@@ -310,7 +352,6 @@ export default function AdminPage() {
     const startHour = Number(blockedForm.startHour);
     const endHour = Number(blockedForm.endHour);
     const weekday = Number(blockedForm.weekday);
-
     if (!Number.isInteger(startHour) || !Number.isInteger(endHour)) {
       setNotice({ kind: "error", text: "차단 시작/종료 시간을 선택하세요." });
       return;
@@ -335,7 +376,6 @@ export default function AdminPage() {
     });
 
     const data = (await response.json()) as { message?: string };
-
     if (!response.ok) {
       setNotice({ kind: "error", text: data.message ?? "차단 시간 등록에 실패했습니다." });
       setLoading(false);
@@ -366,14 +406,10 @@ export default function AdminPage() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        blockedSlotId,
-        adminPassword,
-      }),
+      body: JSON.stringify({ blockedSlotId, adminPassword }),
     });
 
     const data = (await response.json()) as { message?: string };
-
     if (!response.ok) {
       setNotice({ kind: "error", text: data.message ?? "차단 시간 삭제에 실패했습니다." });
       setLoading(false);
@@ -385,22 +421,94 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  const onSubmitBoardNotice = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!authenticated) {
+      return;
+    }
+
+    setLoading(true);
+    setNotice(null);
+
+    const method = editingNoticeId ? "PATCH" : "POST";
+    const payload = editingNoticeId
+      ? { adminPassword, noticeId: editingNoticeId, ...noticeForm }
+      : { adminPassword, ...noticeForm };
+
+    const response = await fetch("/api/admin/notices", {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = (await response.json()) as { message?: string };
+    if (!response.ok) {
+      setNotice({ kind: "error", text: data.message ?? "공지사항 저장에 실패했습니다." });
+      setLoading(false);
+      return;
+    }
+
+    setNotice({ kind: "success", text: data.message ?? "공지사항이 저장되었습니다." });
+    setEditingNoticeId(null);
+    setNoticeForm({ title: "", content: "" });
+    setRefreshKey((previous) => previous + 1);
+    setLoading(false);
+  };
+
+  const onEditBoardNotice = (item: BoardNotice) => {
+    setEditingNoticeId(item.id);
+    setNoticeForm({ title: item.title, content: item.content });
+  };
+
+  const onDeleteBoardNotice = async (noticeId: number) => {
+    if (!authenticated) {
+      return;
+    }
+
+    setLoading(true);
+    setNotice(null);
+
+    const response = await fetch("/api/admin/notices", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ noticeId, adminPassword }),
+    });
+
+    const data = (await response.json()) as { message?: string };
+    if (!response.ok) {
+      setNotice({ kind: "error", text: data.message ?? "공지사항 삭제에 실패했습니다." });
+      setLoading(false);
+      return;
+    }
+
+    setNotice({ kind: "success", text: data.message ?? "공지사항이 삭제되었습니다." });
+    if (editingNoticeId === noticeId) {
+      setEditingNoticeId(null);
+      setNoticeForm({ title: "", content: "" });
+    }
+    setRefreshKey((previous) => previous + 1);
+    setLoading(false);
+  };
+
   const todayReservationsCount = reservations.filter((item) => item.date === todayDate).length;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <section className="relative overflow-hidden rounded-3xl border border-[var(--border-strong)] bg-[var(--card)] p-6 shadow-[0_20px_50px_rgba(42,79,138,0.12)] sm:p-8">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle,_#d7e7ff_0%,_rgba(215,231,255,0)_70%)]" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <section className="rounded-3xl border border-[var(--border-strong)] bg-[var(--card)] p-6 shadow-[0_20px_50px_rgba(42,79,138,0.12)] sm:p-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="inline-flex w-fit items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-wide text-[var(--accent)]">
               ADMIN DASHBOARD
             </p>
-            <h1 className="mt-3 text-2xl font-black leading-tight tracking-tight text-slate-900 sm:text-3xl">
+            <h1 className="mt-3 text-2xl font-black text-slate-900 sm:text-3xl">
               원광대학교 의과대학 CPX/OSCE Room 관리자
             </h1>
             <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
-              예약 조회/취소와 예약 불가 시간(차단) 관리를 수행합니다.
+              예약 조회/취소, 예약 불가 시간, 공지사항 관리
             </p>
           </div>
 
@@ -415,12 +523,8 @@ export default function AdminPage() {
             </article>
           </div>
         </div>
-
-        <div className="relative mt-5">
-          <Link
-            href="/"
-            className="inline-flex items-center rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          >
+        <div className="mt-5">
+          <Link href="/" className="text-sm font-semibold text-slate-700 underline">
             메인으로 이동
           </Link>
         </div>
@@ -439,15 +543,9 @@ export default function AdminPage() {
       ) : null}
 
       <section className="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
-        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">관리자 인증</h2>
-            <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
-              SECURE
-            </span>
-          </div>
-
-          <form className="grid gap-3" onSubmit={onSubmitAuth}>
+        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900">관리자 인증</h2>
+          <form className="mt-4 grid gap-3" onSubmit={onSubmitAuth}>
             <input
               type="password"
               required
@@ -456,48 +554,23 @@ export default function AdminPage() {
               placeholder="관리자 비밀번호"
               className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
             />
-            <button
-              type="submit"
-              disabled={loading}
-              className="h-11 rounded-xl bg-[var(--accent)] font-semibold text-white transition hover:brightness-105 disabled:opacity-60"
-            >
+            <button type="submit" disabled={loading} className="h-11 rounded-xl bg-[var(--accent)] font-semibold text-white">
               {loading ? "확인 중..." : authenticated ? "재인증" : "로그인"}
             </button>
           </form>
-
-          <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--card-soft)] px-3 py-2 text-xs text-[var(--muted)]">
-            인증 후 예약 취소와 예약 불가 시간 관리 기능이 활성화됩니다.
-          </div>
         </article>
 
-        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">조회 필터</h2>
-            <button
-              type="button"
-              onClick={() => setRefreshKey((previous) => previous + 1)}
-              className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm font-medium text-slate-700"
-            >
+        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900">조회 필터</h2>
+          <div className="mt-4 flex items-center gap-2">
+            <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={useDateFilter} onChange={(event) => setUseDateFilter(event.target.checked)} />
+              날짜 필터
+            </label>
+            <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} disabled={!useDateFilter} className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm" />
+            <button type="button" onClick={() => setRefreshKey((previous) => previous + 1)} className="h-10 rounded-xl border border-[var(--border)] px-3 text-sm">
               새로고침
             </button>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
-            <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={useDateFilter}
-                onChange={(event) => setUseDateFilter(event.target.checked)}
-              />
-              날짜 필터 사용
-            </label>
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(event) => setDateFilter(event.target.value)}
-              disabled={!useDateFilter}
-              className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm disabled:opacity-60"
-            />
           </div>
         </article>
       </section>
@@ -505,109 +578,43 @@ export default function AdminPage() {
       {authenticated ? (
         <>
           <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 불가 시간 등록</h2>
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                  BLOCK SLOT
-                </span>
-              </div>
-
-              <form className="grid gap-3" onSubmit={onSubmitBlockedSlot}>
-                <select
-                  value={blockedForm.roomName}
-                  onChange={(event) =>
-                    setBlockedForm((previous) => ({
-                      ...previous,
-                      roomName: event.target.value as RoomName,
-                    }))
-                  }
-                  className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
-                >
+            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">예약 불가 시간 등록</h2>
+              <form className="mt-4 grid gap-3" onSubmit={onSubmitBlockedSlot}>
+                <select value={blockedForm.roomName} onChange={(event) => setBlockedForm((previous) => ({ ...previous, roomName: event.target.value as RoomName }))} className="h-11 rounded-xl border border-[var(--border)] bg-white px-3">
                   {ROOM_NAMES.map((roomName) => (
-                    <option key={roomName} value={roomName}>
-                      {roomName}
-                    </option>
+                    <option key={roomName} value={roomName}>{roomName}</option>
                   ))}
                 </select>
-
                 <div className="grid grid-cols-3 gap-2">
-                  <select
-                    value={blockedForm.weekday}
-                    onChange={(event) =>
-                      setBlockedForm((previous) => ({ ...previous, weekday: event.target.value }))
-                    }
-                    className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
-                  >
+                  <select value={blockedForm.weekday} onChange={(event) => setBlockedForm((previous) => ({ ...previous, weekday: event.target.value }))} className="h-11 rounded-xl border border-[var(--border)] bg-white px-3">
                     {WEEKDAY_OPTIONS.map((item) => (
-                      <option key={item.value} value={item.value}>
-                        {item.label}
-                      </option>
+                      <option key={item.value} value={item.value}>{item.label}</option>
                     ))}
                   </select>
-                  <select
-                    value={blockedForm.startHour}
-                    onChange={(event) =>
-                      setBlockedForm((previous) => ({ ...previous, startHour: event.target.value, endHour: "" }))
-                    }
-                    className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
-                    required
-                  >
+                  <select value={blockedForm.startHour} onChange={(event) => setBlockedForm((previous) => ({ ...previous, startHour: event.target.value, endHour: "" }))} className="h-11 rounded-xl border border-[var(--border)] bg-white px-3" required>
                     <option value="">시작</option>
                     {START_HOURS.map((hour) => (
-                      <option key={hour} value={hour}>
-                        {hourLabel(hour)}
-                      </option>
+                      <option key={hour} value={hour}>{hourLabel(hour)}</option>
                     ))}
                   </select>
-                  <select
-                    value={blockedForm.endHour}
-                    onChange={(event) =>
-                      setBlockedForm((previous) => ({ ...previous, endHour: event.target.value }))
-                    }
-                    className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
-                    required
-                  >
+                  <select value={blockedForm.endHour} onChange={(event) => setBlockedForm((previous) => ({ ...previous, endHour: event.target.value }))} className="h-11 rounded-xl border border-[var(--border)] bg-white px-3" required>
                     <option value="">종료</option>
                     {END_HOURS.map((hour) => {
                       const startHour = Number(blockedForm.startHour);
                       const invalid = !Number.isInteger(startHour) || hour <= startHour;
-                      return (
-                        <option key={hour} value={hour} disabled={invalid}>
-                          {hourLabel(hour)}
-                        </option>
-                      );
+                      return <option key={hour} value={hour} disabled={invalid}>{hourLabel(hour)}</option>;
                     })}
                   </select>
                 </div>
-
-                <input
-                  required
-                  value={blockedForm.reason}
-                  onChange={(event) =>
-                    setBlockedForm((previous) => ({ ...previous, reason: event.target.value }))
-                  }
-                  placeholder="예약 불가 사유"
-                  className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
-                />
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="h-11 rounded-xl bg-amber-500 font-semibold text-white transition hover:brightness-105 disabled:opacity-60"
-                >
-                  차단 시간 등록
-                </button>
+                <input required value={blockedForm.reason} onChange={(event) => setBlockedForm((previous) => ({ ...previous, reason: event.target.value }))} placeholder="예약 불가 사유" className="h-11 rounded-xl border border-[var(--border)] bg-white px-3" />
+                <button type="submit" disabled={loading} className="h-11 rounded-xl bg-amber-500 font-semibold text-white">차단 시간 등록</button>
               </form>
             </article>
 
-            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">차단 시간 목록</h2>
-                <span className="text-sm text-[var(--muted)]">총 {blockedSlots.length}건</span>
-              </div>
-
-              <div className="overflow-x-auto rounded-2xl border border-[var(--border)]">
+            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">차단 시간 목록</h2>
+              <div className="mt-4 overflow-x-auto rounded-2xl border border-[var(--border)]">
                 <table className="min-w-full border-collapse text-sm">
                   <thead className="bg-[var(--card-soft)] text-slate-700">
                     <tr className="border-b border-[var(--border)] text-left">
@@ -620,27 +627,15 @@ export default function AdminPage() {
                   </thead>
                   <tbody className="bg-white">
                     {blockedSlots.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-3 py-6 text-center text-[var(--muted)]">
-                          등록된 차단 시간이 없습니다.
-                        </td>
-                      </tr>
+                      <tr><td colSpan={5} className="px-3 py-6 text-center text-[var(--muted)]">등록된 차단 시간이 없습니다.</td></tr>
                     ) : (
                       blockedSlots.map((slot) => (
                         <tr key={slot.id} className="border-b border-[var(--border)] last:border-b-0">
-                          <td className="px-3 py-3 text-slate-700">{weekdayLabel(slot.weekday)}</td>
-                          <td className="px-3 py-3 text-slate-700">{slot.roomName}</td>
-                          <td className="px-3 py-3 text-slate-700">{rangeLabel(slot.startHour, slot.endHour)}</td>
-                          <td className="px-3 py-3 text-slate-700">{slot.reason}</td>
-                          <td className="px-3 py-3">
-                            <button
-                              type="button"
-                              onClick={() => onDeleteBlockedSlot(slot.id)}
-                              className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
-                            >
-                              삭제
-                            </button>
-                          </td>
+                          <td className="px-3 py-3">{weekdayLabel(slot.weekday)}</td>
+                          <td className="px-3 py-3">{slot.roomName}</td>
+                          <td className="px-3 py-3">{rangeLabel(slot.startHour, slot.endHour)}</td>
+                          <td className="px-3 py-3">{slot.reason}</td>
+                          <td className="px-3 py-3"><button type="button" onClick={() => onDeleteBlockedSlot(slot.id)} className="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-700">삭제</button></td>
                         </tr>
                       ))
                     )}
@@ -650,13 +645,49 @@ export default function AdminPage() {
             </article>
           </section>
 
-          <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">전체 예약 목록</h2>
-              <span className="text-sm text-[var(--muted)]">총 {reservations.length}건</span>
-            </div>
+          <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">공지사항 작성</h2>
+              <form className="mt-4 grid gap-3" onSubmit={onSubmitBoardNotice}>
+                <input required value={noticeForm.title} onChange={(event) => setNoticeForm((previous) => ({ ...previous, title: event.target.value }))} placeholder="공지사항 제목" className="h-11 rounded-xl border border-[var(--border)] bg-white px-3" />
+                <textarea required rows={5} value={noticeForm.content} onChange={(event) => setNoticeForm((previous) => ({ ...previous, content: event.target.value }))} placeholder="공지사항 내용" className="rounded-xl border border-[var(--border)] bg-white px-3 py-2" />
+                <div className="flex gap-2">
+                  <button type="submit" disabled={loading} className="h-11 rounded-xl bg-[var(--accent)] px-4 font-semibold text-white">
+                    {editingNoticeId ? "공지 수정" : "공지 등록"}
+                  </button>
+                  {editingNoticeId ? (
+                    <button type="button" onClick={() => { setEditingNoticeId(null); setNoticeForm({ title: "", content: "" }); }} className="h-11 rounded-xl border border-[var(--border)] px-4 text-sm">취소</button>
+                  ) : null}
+                </div>
+              </form>
+            </article>
 
-            <div className="overflow-x-auto rounded-2xl border border-[var(--border)]">
+            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">공지사항 목록</h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {boardNotices.length === 0 ? (
+                  <p className="col-span-full rounded-xl border border-dashed border-[var(--border)] bg-[var(--card-soft)] px-4 py-8 text-center text-sm text-[var(--muted)]">
+                    등록된 공지사항이 없습니다.
+                  </p>
+                ) : (
+                  boardNotices.map((item, index) => (
+                    <article key={item.id} className={`rounded-xl border border-amber-200 bg-[#fff4b8] p-3 shadow-[0_8px_16px_rgba(214,171,70,0.2)] ${index % 2 === 0 ? "rotate-[-0.8deg]" : "rotate-[0.8deg]"}`}>
+                      <h3 className="text-sm font-bold text-amber-900">{item.title}</h3>
+                      <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-xs leading-5 text-amber-900/90">{item.content}</p>
+                      <div className="mt-3 flex items-center gap-2">
+                        <button type="button" onClick={() => onEditBoardNotice(item)} className="rounded-md border border-sky-200 px-2 py-1 text-xs text-sky-700">수정</button>
+                        <button type="button" onClick={() => onDeleteBoardNotice(item.id)} className="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-700">삭제</button>
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+            </article>
+          </section>
+
+          <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">전체 예약 목록</h2>
+            <div className="mt-4 overflow-x-auto rounded-2xl border border-[var(--border)]">
               <table className="min-w-full border-collapse text-sm">
                 <thead className="bg-[var(--card-soft)] text-slate-700">
                   <tr className="border-b border-[var(--border)] text-left">
@@ -673,45 +704,21 @@ export default function AdminPage() {
                 </thead>
                 <tbody className="bg-white">
                   {loading ? (
-                    <tr>
-                      <td colSpan={9} className="px-3 py-6 text-center text-[var(--muted)]">
-                        불러오는 중...
-                      </td>
-                    </tr>
+                    <tr><td colSpan={9} className="px-3 py-6 text-center text-[var(--muted)]">불러오는 중...</td></tr>
                   ) : reservations.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="px-3 py-6 text-center text-[var(--muted)]">
-                        예약 내역이 없습니다.
-                      </td>
-                    </tr>
+                    <tr><td colSpan={9} className="px-3 py-6 text-center text-[var(--muted)]">예약 내역이 없습니다.</td></tr>
                   ) : (
                     reservations.map((reservation) => (
                       <tr key={reservation.id} className="border-b border-[var(--border)] last:border-b-0">
-                        <td className="px-3 py-3 text-slate-700">{reservation.id}</td>
-                        <td className="px-3 py-3 text-slate-700">{reservation.studentId}</td>
-                        <td className="px-3 py-3 text-slate-700">{reservation.name}</td>
-                        <td className="px-3 py-3">
-                          <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--accent)]">
-                            {reservation.roomName}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-slate-700">{reservation.date}</td>
-                        <td className="px-3 py-3 text-slate-700">
-                          {rangeLabel(reservation.startHour, reservation.endHour)}
-                        </td>
-                        <td className="px-3 py-3 text-slate-700">{reservation.durationHours}시간</td>
-                        <td className="px-3 py-3 text-slate-700">
-                          {new Date(reservation.createdAt).toLocaleString()}
-                        </td>
-                        <td className="px-3 py-3">
-                          <button
-                            type="button"
-                            onClick={() => onCancelAsAdmin(reservation.id)}
-                            className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
-                          >
-                            취소
-                          </button>
-                        </td>
+                        <td className="px-3 py-3">{reservation.id}</td>
+                        <td className="px-3 py-3">{reservation.studentId}</td>
+                        <td className="px-3 py-3">{reservation.name}</td>
+                        <td className="px-3 py-3">{reservation.roomName}</td>
+                        <td className="px-3 py-3">{reservation.date}</td>
+                        <td className="px-3 py-3">{rangeLabel(reservation.startHour, reservation.endHour)}</td>
+                        <td className="px-3 py-3">{reservation.durationHours}시간</td>
+                        <td className="px-3 py-3">{new Date(reservation.createdAt).toLocaleString()}</td>
+                        <td className="px-3 py-3"><button type="button" onClick={() => onCancelAsAdmin(reservation.id)} className="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-700">취소</button></td>
                       </tr>
                     ))
                   )}
@@ -722,7 +729,7 @@ export default function AdminPage() {
         </>
       ) : (
         <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 py-6 text-center text-sm text-[var(--muted)]">
-          관리자 인증 후 예약 목록이 표시됩니다.
+          관리자 인증 후 관리 기능이 표시됩니다.
         </section>
       )}
     </main>
