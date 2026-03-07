@@ -813,7 +813,7 @@ export default function HomePage() {
                 <th className="px-4 py-3 font-semibold">방</th>
                 <th className="px-4 py-3 font-semibold">날짜</th>
                 <th className="px-4 py-3 font-semibold">시간</th>
-                <th className="px-4 py-3 font-semibold">이름/사유</th>
+                <th className="px-4 py-3 font-semibold">이름</th>
                 <th className="px-4 py-3 font-semibold">취소</th>
               </tr>
             </thead>
