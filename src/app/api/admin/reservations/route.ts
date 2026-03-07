@@ -5,6 +5,7 @@ import {
   getAdminReservations,
   parseReservationId,
 } from "@/lib/reservation-service";
+import { assertAdminPassword } from "@/lib/admin-auth";
 
 function handleApiError(error: unknown): NextResponse {
   if (error instanceof ApiError) {
@@ -16,16 +17,6 @@ function handleApiError(error: unknown): NextResponse {
     { message: "서버 오류가 발생했습니다." },
     { status: 500 },
   );
-}
-
-function assertAdminPassword(password: string): void {
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) {
-    throw new ApiError(500, "ADMIN_PASSWORD 환경변수가 설정되지 않았습니다.");
-  }
-  if (password !== adminPassword) {
-    throw new ApiError(401, "관리자 인증에 실패했습니다.");
-  }
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {

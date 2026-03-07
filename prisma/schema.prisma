@@ -23,3 +23,15 @@ model Reservation {
   @@index([date, roomName, startHour])
   @@index([studentId, date])
 }
+
+model BlockedSlot {
+  id        Int      @id @default(autoincrement())
+  roomName  String
+  weekday   Int
+  startHour Int
+  endHour   Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([weekday, roomName, startHour])
+}

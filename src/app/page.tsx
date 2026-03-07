@@ -14,6 +14,8 @@ type PublicReservation = {
   durationHours: number;
   name: string;
   createdAt: string;
+  isBlocked: boolean;
+  blockedReason: string | null;
 };
 
 type Notice = {
@@ -30,6 +32,8 @@ type ReservationForm = {
   startHour: string;
   endHour: string;
 };
+
+type HourState = "open" | "reserved" | "blocked";
 
 const START_HOURS = Array.from({ length: 24 }, (_, index) => index);
 const END_HOURS = Array.from({ length: 24 }, (_, index) => index + 1);
@@ -56,33 +60,61 @@ function formatDateLabel(date: string): string {
   });
 }
 
-function getBlockedHours(
+function buildHourStates(
   reservations: PublicReservation[],
   roomName: RoomName,
-): Set<number> {
-  const blocked = new Set<number>();
+): Map<number, HourState> {
+  const states = new Map<number, HourState>();
+
   for (const reservation of reservations) {
     if (reservation.roomName !== roomName) {
       continue;
     }
+
     for (let hour = reservation.startHour; hour < reservation.endHour; hour += 1) {
-      blocked.add(hour);
+      if (reservation.isBlocked) {
+        states.set(hour, "blocked");
+        continue;
+      }
+
+      if (!states.has(hour)) {
+        states.set(hour, "reserved");
+      }
     }
   }
-  return blocked;
+
+  return states;
 }
 
-function intersectsBlocked(
+function intersectsUnavailable(
   startHour: number,
   endHour: number,
-  blockedHours: Set<number>,
+  states: Map<number, HourState>,
 ): boolean {
   for (let hour = startHour; hour < endHour; hour += 1) {
-    if (blockedHours.has(hour)) {
+    const state = states.get(hour);
+    if (state === "reserved" || state === "blocked") {
       return true;
     }
   }
   return false;
+}
+
+function findBlockedConflict(
+  startHour: number,
+  endHour: number,
+  reservations: PublicReservation[],
+  roomName: RoomName,
+): PublicReservation | null {
+  for (const reservation of reservations) {
+    if (!reservation.isBlocked || reservation.roomName !== roomName) {
+      continue;
+    }
+    if (reservation.startHour < endHour && reservation.endHour > startHour) {
+      return reservation;
+    }
+  }
+  return null;
 }
 
 function sortReservations(items: PublicReservation[]): PublicReservation[] {
@@ -94,7 +126,7 @@ function sortReservations(items: PublicReservation[]): PublicReservation[] {
     if (a.startHour !== b.startHour) {
       return a.startHour - b.startHour;
     }
-    return a.endHour - b.endHour;
+    return Number(b.isBlocked) - Number(a.isBlocked);
   });
 }
 
@@ -220,8 +252,8 @@ export default function HomePage() {
     };
   }, [form.date, refreshKey]);
 
-  const blockedHours = useMemo(
-    () => getBlockedHours(bookingDateReservations, form.roomName),
+  const hourStates = useMemo(
+    () => buildHourStates(bookingDateReservations, form.roomName),
     [bookingDateReservations, form.roomName],
   );
 
@@ -245,7 +277,21 @@ export default function HomePage() {
       return;
     }
 
-    if (intersectsBlocked(startHour, endHour, blockedHours)) {
+    const blockedConflict = findBlockedConflict(
+      startHour,
+      endHour,
+      bookingDateReservations,
+      form.roomName,
+    );
+    if (blockedConflict) {
+      setNotice({
+        kind: "error",
+        text: `예약 불가 시간입니다: ${blockedConflict.blockedReason ?? blockedConflict.name}`,
+      });
+      return;
+    }
+
+    if (intersectsUnavailable(startHour, endHour, hourStates)) {
       setNotice({ kind: "error", text: "선택한 시간에 이미 예약이 있습니다." });
       return;
     }
@@ -292,7 +338,7 @@ export default function HomePage() {
 
   const onSubmitCancel = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedForCancel) {
+    if (!selectedForCancel || selectedForCancel.isBlocked) {
       return;
     }
 
@@ -386,11 +432,18 @@ export default function HomePage() {
                 ) : (
                   <ul className="space-y-2 text-sm text-slate-700">
                     {reservations.map((reservation) => (
-                      <li key={reservation.id} className="rounded-lg bg-white px-3 py-2">
+                      <li
+                        key={`${reservation.isBlocked ? "b" : "r"}-${reservation.id}`}
+                        className={`rounded-lg px-3 py-2 ${
+                          reservation.isBlocked ? "bg-amber-50" : "bg-white"
+                        }`}
+                      >
                         <p className="font-semibold">
                           {rangeLabel(reservation.startHour, reservation.endHour)}
                         </p>
-                        <p className="text-xs text-[var(--muted)]">{reservation.name}</p>
+                        <p className="text-xs text-[var(--muted)]">
+                          {reservation.isBlocked ? `사유: ${reservation.name}` : reservation.name}
+                        </p>
                       </li>
                     ))}
                   </ul>
@@ -497,11 +550,21 @@ export default function HomePage() {
                 className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
               >
                 <option value="">시작 시간</option>
-                {START_HOURS.map((hour) => (
-                  <option key={hour} value={hour} disabled={blockedHours.has(hour)}>
-                    {hourLabel(hour)} {blockedHours.has(hour) ? "(예약됨)" : ""}
-                  </option>
-                ))}
+                {START_HOURS.map((hour) => {
+                  const state = hourStates.get(hour) ?? "open";
+                  const suffix =
+                    state === "blocked"
+                      ? "(차단됨)"
+                      : state === "reserved"
+                        ? "(예약됨)"
+                        : "";
+
+                  return (
+                    <option key={hour} value={hour} disabled={state !== "open"}>
+                      {hourLabel(hour)} {suffix}
+                    </option>
+                  );
+                })}
               </select>
 
               <select
@@ -517,7 +580,7 @@ export default function HomePage() {
                   const isInvalidRange =
                     !hasSelectedStartHour ||
                     hour <= selectedStartHour ||
-                    intersectsBlocked(selectedStartHour, hour, blockedHours);
+                    intersectsUnavailable(selectedStartHour, hour, hourStates);
 
                   return (
                     <option key={hour} value={hour} disabled={isInvalidRange}>
@@ -550,14 +613,17 @@ export default function HomePage() {
 
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
             {START_HOURS.map((hour) => {
-              const reserved = blockedHours.has(hour);
+              const state = hourStates.get(hour) ?? "open";
+
               return (
                 <span
                   key={hour}
                   className={`rounded-lg border px-2 py-2 text-center text-xs font-semibold ${
-                    reserved
-                      ? "border-rose-200 bg-rose-50 text-rose-600"
-                      : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    state === "blocked"
+                      ? "border-amber-200 bg-amber-50 text-amber-700"
+                      : state === "reserved"
+                        ? "border-rose-200 bg-rose-50 text-rose-600"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
                   }`}
                 >
                   {hourLabel(hour)}
@@ -567,7 +633,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            예약 가능: {24 - blockedHours.size}시간
+            예약 가능: {24 - Array.from(hourStates.values()).filter((state) => state !== "open").length}시간
           </div>
           <p className="mt-2 text-xs text-slate-500">
             하루 최대 3시간까지 예약 가능합니다.
@@ -614,7 +680,7 @@ export default function HomePage() {
                 <th className="px-4 py-3 font-semibold">방</th>
                 <th className="px-4 py-3 font-semibold">날짜</th>
                 <th className="px-4 py-3 font-semibold">시간</th>
-                <th className="px-4 py-3 font-semibold">이름</th>
+                <th className="px-4 py-3 font-semibold">이름/사유</th>
                 <th className="px-4 py-3 font-semibold">작업</th>
               </tr>
             </thead>
@@ -633,7 +699,12 @@ export default function HomePage() {
                 </tr>
               ) : (
                 viewReservations.map((reservation) => (
-                  <tr key={reservation.id} className="border-b border-[var(--border)] last:border-b-0">
+                  <tr
+                    key={`${reservation.isBlocked ? "b" : "r"}-${reservation.id}`}
+                    className={`border-b border-[var(--border)] last:border-b-0 ${
+                      reservation.isBlocked ? "bg-amber-50/50" : ""
+                    }`}
+                  >
                     <td className="px-4 py-3">
                       <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--accent)]">
                         {reservation.roomName}
@@ -643,15 +714,21 @@ export default function HomePage() {
                     <td className="px-4 py-3 text-slate-700">
                       {rangeLabel(reservation.startHour, reservation.endHour)}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{reservation.name}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {reservation.isBlocked ? `사유: ${reservation.name}` : reservation.name}
+                    </td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedForCancel(reservation)}
-                        className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
-                      >
-                        취소
-                      </button>
+                      {reservation.isBlocked ? (
+                        <span className="text-xs font-semibold text-amber-700">차단 시간</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedForCancel(reservation)}
+                          className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                        >
+                          취소
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

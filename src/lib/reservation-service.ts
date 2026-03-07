@@ -1,8 +1,8 @@
-﻿import { compare, hash } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 import { Prisma, type Reservation } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isValidDateString } from "@/lib/date";
-import { isValidRoomName, type RoomName } from "@/lib/rooms";
+import { getLocalDateString, isValidDateString } from "@/lib/date";
+import { ROOM_NAMES, isValidRoomName, type RoomName } from "@/lib/rooms";
 
 export class ApiError extends Error {
   status: number;
@@ -13,17 +13,20 @@ export class ApiError extends Error {
   }
 }
 
-export type PublicReservation = Pick<
-  Reservation,
-  | "id"
-  | "roomName"
-  | "date"
-  | "startHour"
-  | "endHour"
-  | "durationHours"
-  | "name"
-  | "createdAt"
->;
+const ROOM_ORDER = new Map(ROOM_NAMES.map((name, index) => [name, index]));
+
+export type PublicReservation = {
+  id: number;
+  roomName: RoomName;
+  date: string;
+  startHour: number;
+  endHour: number;
+  durationHours: number;
+  name: string;
+  createdAt: Date;
+  isBlocked: boolean;
+  blockedReason: string | null;
+};
 
 export type AdminReservation = Pick<
   Reservation,
@@ -38,6 +41,16 @@ export type AdminReservation = Pick<
   | "createdAt"
 >;
 
+export type AdminBlockedSlot = {
+  id: number;
+  roomName: RoomName;
+  weekday: number;
+  startHour: number;
+  endHour: number;
+  reason: string;
+  createdAt: Date;
+};
+
 type CreateReservationInput = {
   studentId: string;
   name: string;
@@ -46,6 +59,14 @@ type CreateReservationInput = {
   date: string;
   startHour: number;
   endHour: number;
+};
+
+type CreateBlockedSlotInput = {
+  roomName: RoomName;
+  weekday: number;
+  startHour: number;
+  endHour: number;
+  reason: string;
 };
 
 type CancelByUserInput = {
@@ -72,6 +93,11 @@ function parseInteger(value: unknown): number {
   return Number.NaN;
 }
 
+function getWeekdayFromDate(value: string): number {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day).getDay();
+}
+
 function assertDate(value: string): void {
   if (!isValidDateString(value)) {
     throw new ApiError(400, "예약 날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)");
@@ -79,8 +105,9 @@ function assertDate(value: string): void {
 
   const [year, month, day] = value.split("-").map(Number);
   const selectedDate = new Date(year, month - 1, day);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayString = getLocalDateString();
+  const [todayYear, todayMonth, todayDay] = todayString.split("-").map(Number);
+  const today = new Date(todayYear, todayMonth - 1, todayDay);
   const maxDate = new Date(today);
   maxDate.setDate(maxDate.getDate() + 14);
 
@@ -98,6 +125,12 @@ function assertRoomName(value: string): asserts value is RoomName {
 function assertPin(password: string): void {
   if (!/^\d{4}$/.test(password)) {
     throw new ApiError(400, "비밀번호는 4자리 숫자여야 합니다.");
+  }
+}
+
+function assertWeekday(weekday: number): void {
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+    throw new ApiError(400, "요일 값이 올바르지 않습니다. (0:일요일 ~ 6:토요일)");
   }
 }
 
@@ -122,12 +155,36 @@ function assertNameAndStudent(studentId: string, name: string): void {
   }
 }
 
-function mapPublicReservation(reservation: PublicReservation): PublicReservation {
+function mapAdminReservation(reservation: AdminReservation): AdminReservation {
   return reservation;
 }
 
-function mapAdminReservation(reservation: AdminReservation): AdminReservation {
-  return reservation;
+function mapAdminBlockedSlot(slot: {
+  id: number;
+  roomName: string;
+  weekday: number;
+  startHour: number;
+  endHour: number;
+  reason: string;
+  createdAt: Date;
+}): AdminBlockedSlot | null {
+  if (!isValidRoomName(slot.roomName)) {
+    return null;
+  }
+
+  return {
+    id: slot.id,
+    roomName: slot.roomName,
+    weekday: slot.weekday,
+    startHour: slot.startHour,
+    endHour: slot.endHour,
+    reason: slot.reason,
+    createdAt: slot.createdAt,
+  };
+}
+
+function isPublicRoomName(value: string): value is RoomName {
+  return isValidRoomName(value);
 }
 
 function toLockKey(value: string): number {
@@ -155,10 +212,25 @@ async function createReservationInTransaction(
     async (tx) => {
       const roomLockKey = toLockKey(`room:${input.roomName}:${input.date}`);
       const studentLockKey = toLockKey(`student:${input.studentId}:${input.date}`);
+      const weekday = getWeekdayFromDate(input.date);
 
       // Same room/date and same student/date requests are serialized inside one transaction.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${roomLockKey})`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${studentLockKey})`;
+
+      const blocked = await tx.blockedSlot.findFirst({
+        where: {
+          roomName: input.roomName,
+          weekday,
+          startHour: { lt: input.endHour },
+          endHour: { gt: input.startHour },
+        },
+        select: { id: true, reason: true },
+      });
+
+      if (blocked) {
+        throw new ApiError(409, `예약 불가 시간입니다: ${blocked.reason}`);
+      }
 
       const overlapped = await tx.reservation.findFirst({
         where: {
@@ -192,7 +264,7 @@ async function createReservationInTransaction(
         );
       }
 
-      return tx.reservation.create({
+      const created = await tx.reservation.create({
         data: {
           studentId: input.studentId,
           name: input.name,
@@ -214,6 +286,17 @@ async function createReservationInTransaction(
           createdAt: true,
         },
       });
+
+      if (!isValidRoomName(created.roomName)) {
+        throw new ApiError(500, "예약 데이터에 유효하지 않은 방 이름이 있습니다.");
+      }
+
+      return {
+        ...created,
+        roomName: created.roomName,
+        isBlocked: false,
+        blockedReason: null,
+      };
     },
     {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -256,6 +339,35 @@ export function parseCreateReservationInput(
   };
 }
 
+export function parseCreateBlockedSlotInput(payload: unknown): CreateBlockedSlotInput {
+  if (!payload || typeof payload !== "object") {
+    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
+  }
+
+  const body = payload as Record<string, unknown>;
+  const roomName = parseTrimmedString(body.roomName);
+  const weekday = parseInteger(body.weekday);
+  const startHour = parseInteger(body.startHour);
+  const endHour = parseInteger(body.endHour);
+  const reason = parseTrimmedString(body.reason);
+
+  assertRoomName(roomName);
+  assertWeekday(weekday);
+  assertTimeRange(startHour, endHour);
+
+  if (!reason) {
+    throw new ApiError(400, "예약 불가 사유를 입력하세요.");
+  }
+
+  return {
+    roomName,
+    weekday,
+    startHour,
+    endHour,
+    reason,
+  };
+}
+
 export function parseCancelByUserInput(payload: unknown): CancelByUserInput {
   if (!payload || typeof payload !== "object") {
     throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
@@ -288,10 +400,25 @@ export function parseReservationId(payload: unknown): number {
   return reservationId;
 }
 
+export function parseBlockedSlotId(payload: unknown): number {
+  if (!payload || typeof payload !== "object") {
+    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
+  }
+
+  const body = payload as Record<string, unknown>;
+  const blockedSlotId = parseInteger(body.blockedSlotId);
+  if (!Number.isInteger(blockedSlotId) || blockedSlotId <= 0) {
+    throw new ApiError(400, "차단 슬롯 ID가 올바르지 않습니다.");
+  }
+
+  return blockedSlotId;
+}
+
 export async function getPublicReservationsByDate(
   date: string,
 ): Promise<PublicReservation[]> {
   assertDate(date);
+  const weekday = getWeekdayFromDate(date);
 
   const reservations = await prisma.reservation.findMany({
     where: { date },
@@ -308,7 +435,64 @@ export async function getPublicReservationsByDate(
     },
   });
 
-  return reservations.map(mapPublicReservation);
+  const blockedSlots = await prisma.blockedSlot.findMany({
+    where: { weekday },
+    orderBy: [{ roomName: "asc" }, { startHour: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      roomName: true,
+      weekday: true,
+      startHour: true,
+      endHour: true,
+      reason: true,
+      createdAt: true,
+    },
+  });
+
+  const mappedReservations: PublicReservation[] = reservations
+    .filter((reservation): reservation is typeof reservation & { roomName: RoomName } =>
+      isPublicRoomName(reservation.roomName),
+    )
+    .map((reservation) => ({
+      id: reservation.id,
+      roomName: reservation.roomName,
+      date: reservation.date,
+      startHour: reservation.startHour,
+      endHour: reservation.endHour,
+      durationHours: reservation.durationHours,
+      name: reservation.name,
+      createdAt: reservation.createdAt,
+      isBlocked: false,
+      blockedReason: null,
+    }));
+
+  const mappedBlocked: PublicReservation[] = blockedSlots
+    .filter((slot): slot is typeof slot & { roomName: RoomName } =>
+      isPublicRoomName(slot.roomName),
+    )
+    .map((slot) => ({
+      id: slot.id,
+      roomName: slot.roomName,
+      date,
+      startHour: slot.startHour,
+      endHour: slot.endHour,
+      durationHours: slot.endHour - slot.startHour,
+      name: slot.reason,
+      createdAt: slot.createdAt,
+      isBlocked: true,
+      blockedReason: slot.reason,
+    }));
+
+  return [...mappedReservations, ...mappedBlocked].sort((a, b) => {
+    const roomDiff = (ROOM_ORDER.get(a.roomName) ?? 999) - (ROOM_ORDER.get(b.roomName) ?? 999);
+    if (roomDiff !== 0) {
+      return roomDiff;
+    }
+    if (a.startHour !== b.startHour) {
+      return a.startHour - b.startHour;
+    }
+    return Number(b.isBlocked) - Number(a.isBlocked);
+  });
 }
 
 export async function getAdminReservations(
@@ -337,6 +521,91 @@ export async function getAdminReservations(
   return reservations.map(mapAdminReservation);
 }
 
+export async function getAdminBlockedSlots(
+  weekday?: number,
+): Promise<AdminBlockedSlot[]> {
+  if (typeof weekday === "number") {
+    assertWeekday(weekday);
+  }
+
+  const blockedSlots = await prisma.blockedSlot.findMany({
+    where: typeof weekday === "number" ? { weekday } : undefined,
+    orderBy: [{ weekday: "asc" }, { roomName: "asc" }, { startHour: "asc" }],
+    select: {
+      id: true,
+      roomName: true,
+      weekday: true,
+      startHour: true,
+      endHour: true,
+      reason: true,
+      createdAt: true,
+    },
+  });
+
+  return blockedSlots
+    .map(mapAdminBlockedSlot)
+    .filter((slot): slot is AdminBlockedSlot => slot !== null);
+}
+
+export async function createBlockedSlot(
+  input: CreateBlockedSlotInput,
+): Promise<AdminBlockedSlot> {
+  const overlapped = await prisma.blockedSlot.findFirst({
+    where: {
+      roomName: input.roomName,
+      weekday: input.weekday,
+      startHour: { lt: input.endHour },
+      endHour: { gt: input.startHour },
+    },
+    select: { id: true },
+  });
+
+  if (overlapped) {
+    throw new ApiError(409, "이미 차단된 시간과 겹칩니다.");
+  }
+
+  const created = await prisma.blockedSlot.create({
+    data: {
+      roomName: input.roomName,
+      weekday: input.weekday,
+      startHour: input.startHour,
+      endHour: input.endHour,
+      reason: input.reason,
+    },
+    select: {
+      id: true,
+      roomName: true,
+      weekday: true,
+      startHour: true,
+      endHour: true,
+      reason: true,
+      createdAt: true,
+    },
+  });
+
+  const mapped = mapAdminBlockedSlot(created);
+  if (!mapped) {
+    throw new ApiError(500, "차단 슬롯 생성 데이터가 올바르지 않습니다.");
+  }
+
+  return mapped;
+}
+
+export async function deleteBlockedSlot(blockedSlotId: number): Promise<void> {
+  const blockedSlot = await prisma.blockedSlot.findUnique({
+    where: { id: blockedSlotId },
+    select: { id: true },
+  });
+
+  if (!blockedSlot) {
+    throw new ApiError(404, "차단 슬롯을 찾을 수 없습니다.");
+  }
+
+  await prisma.blockedSlot.delete({
+    where: { id: blockedSlotId },
+  });
+}
+
 export async function createReservation(
   input: CreateReservationInput,
 ): Promise<PublicReservation> {
@@ -345,12 +614,11 @@ export async function createReservation(
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      const created = await createReservationInTransaction(
+      return await createReservationInTransaction(
         input,
         passwordHash,
         durationHours,
       );
-      return mapPublicReservation(created);
     } catch (error) {
       if (isRetryableTransactionError(error) && attempt < 2) {
         continue;
@@ -410,4 +678,3 @@ export async function cancelReservationAsAdmin(reservationId: number): Promise<v
     where: { id: reservationId },
   });
 }
-
