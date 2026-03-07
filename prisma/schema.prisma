@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Reservation {
+  id            Int      @id @default(autoincrement())
+  studentId     String
+  name          String
+  passwordHash  String
+  roomName      String
+  date          String
+  startHour     Int
+  endHour       Int
+  durationHours Int
+  createdAt     DateTime @default(now())
+
+  @@index([date, roomName, startHour])
+  @@index([studentId, date])
+}

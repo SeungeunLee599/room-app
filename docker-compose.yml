@@ -1,0 +1,37 @@
+﻿services:
+  db:
+    image: postgres:16-alpine
+    container_name: room-reservation-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: room_user
+      POSTGRES_PASSWORD: room_pass
+      POSTGRES_DB: room_reservation
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U room_user -d room_reservation"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: room-reservation-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://room_user:room_pass@db:5432/room_reservation?schema=public
+      DIRECT_URL: postgresql://room_user:room_pass@db:5432/room_reservation?schema=public
+      ADMIN_PASSWORD: change-this-admin-password
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+
