@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { getLocalDateString } from "@/lib/date";
 import { ROOM_NAMES, type RoomName } from "@/lib/rooms";
 
@@ -219,6 +220,7 @@ export default function HomePage() {
   const [loadingCancel, setLoadingCancel] = useState(false);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [cancelPortalTarget, setCancelPortalTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -302,6 +304,10 @@ export default function HomePage() {
       active = false;
     };
   }, [refreshKey]);
+
+  useEffect(() => {
+    setCancelPortalTarget(document.getElementById("cancel-confirm-anchor"));
+  }, []);
 
   const hourStates = useMemo(
     () => buildHourStates(bookingDateReservations, form.roomName),
@@ -448,6 +454,8 @@ export default function HomePage() {
           </span>
         </div>
       </section>
+
+      <div id="cancel-confirm-anchor" />
 
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-2">
@@ -898,8 +906,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {selectedForCancel ? (
-        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+      {selectedForCancel && cancelPortalTarget
+        ? createPortal(
+            <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
           <h3 className="text-base font-semibold text-rose-700">예약 취소 확인</h3>
           <p className="mt-1 text-sm text-rose-700">
             {selectedForCancel.roomName} | {selectedForCancel.date} | {rangeLabel(selectedForCancel.startHour, selectedForCancel.endHour)}
@@ -959,8 +968,10 @@ export default function HomePage() {
               </button>
             </div>
           </form>
-        </section>
-      ) : null}
+            </section>,
+            cancelPortalTarget,
+          )
+        : null}
 
       <footer className="flex justify-end pt-1">
         <Link
