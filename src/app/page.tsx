@@ -569,6 +569,9 @@ export default function HomePage() {
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             예약 가능: {24 - blockedHours.size}시간
           </div>
+          <p className="mt-2 text-xs text-slate-500">
+            하루 최대 3시간까지만 예약 가능합니다.
+          </p>
         </article>
       </section>
 
