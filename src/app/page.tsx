@@ -338,8 +338,8 @@ export default function HomePage() {
             <p className="inline-flex w-fit items-center rounded-full border border-[#aec6f2] bg-white/80 px-4 py-1.5 text-sm font-extrabold tracking-wide text-[#204585] shadow-sm">
               원광대학교 의과대학
             </p>
-            <h1 className="text-3xl font-black leading-tight tracking-tight text-[#0f2242] sm:text-4xl">
-              CPX/OXCE Room 예약 시스템
+            <h1 className="whitespace-nowrap text-[clamp(1.2rem,5vw,2.25rem)] font-black leading-tight tracking-tight text-[#0f2242]">
+              CPX/OSCE Room 예약 시스템
             </h1>
           </div>
         </div>
