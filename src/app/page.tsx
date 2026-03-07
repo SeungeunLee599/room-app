@@ -339,9 +339,6 @@ export default function HomePage() {
             <h1 className="text-2xl font-black leading-tight tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
               원광대학교 의과대학 CPX/OXCE Room 예약 시스템
             </h1>
-            <p className="max-w-3xl text-sm text-[var(--muted)] sm:text-base">
-              실습실 예약을 한 화면에서 확인하고 신청할 수 있는 통합 대시보드입니다.
-            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:w-fit">
@@ -360,12 +357,56 @@ export default function HomePage() {
           <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[var(--muted)]">
             Today {formatDateLabel(todayDate)}
           </span>
-          <Link
-            href="/admin"
-            className="rounded-full border border-[var(--border)] bg-white px-3 py-1 font-medium text-slate-700 transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          >
-            관리자 페이지
-          </Link>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 목록</h2>
+          <span className="text-sm text-[var(--muted)]">{formatDateLabel(todayDate)}</span>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {ROOM_NAMES.map((roomName) => {
+            const reservations = todayReservations.filter(
+              (reservation) => reservation.roomName === roomName,
+            );
+
+            return (
+              <article
+                key={roomName}
+                className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] p-4"
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-bold text-slate-900">{roomName}</h3>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      reservations.length === 0
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {reservations.length === 0 ? "AVAILABLE" : `${reservations.length}건`}
+                  </span>
+                </div>
+
+                {reservations.length === 0 ? (
+                  <p className="text-sm text-[var(--muted)]">예약 없음</p>
+                ) : (
+                  <ul className="space-y-2 text-sm text-slate-700">
+                    {reservations.map((reservation) => (
+                      <li key={reservation.id} className="rounded-lg bg-white px-3 py-2">
+                        <p className="font-semibold">
+                          {rangeLabel(reservation.startHour, reservation.endHour)}
+                        </p>
+                        <p className="text-xs text-[var(--muted)]">{reservation.name}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -532,13 +573,8 @@ export default function HomePage() {
             })}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-              예약 가능 {24 - blockedHours.size}시간
-            </div>
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
-              예약 불가 {blockedHours.size}시간
-            </div>
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            예약 가능 {24 - blockedHours.size}시간
           </div>
         </article>
       </section>
@@ -629,58 +665,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
-            오늘 예약 카드
-          </h2>
-          <span className="text-sm text-[var(--muted)]">{formatDateLabel(todayDate)}</span>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {ROOM_NAMES.map((roomName) => {
-            const reservations = todayReservations.filter(
-              (reservation) => reservation.roomName === roomName,
-            );
-
-            return (
-              <article
-                key={roomName}
-                className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] p-4"
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="font-bold text-slate-900">{roomName}</h3>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                      reservations.length === 0
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {reservations.length === 0 ? "AVAILABLE" : `${reservations.length}건`}
-                  </span>
-                </div>
-
-                {reservations.length === 0 ? (
-                  <p className="text-sm text-[var(--muted)]">예약 없음</p>
-                ) : (
-                  <ul className="space-y-2 text-sm text-slate-700">
-                    {reservations.map((reservation) => (
-                      <li key={reservation.id} className="rounded-lg bg-white px-3 py-2">
-                        <p className="font-semibold">
-                          {rangeLabel(reservation.startHour, reservation.endHour)}
-                        </p>
-                        <p className="text-xs text-[var(--muted)]">{reservation.name}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
       {selectedForCancel ? (
         <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
           <h3 className="text-base font-semibold text-rose-700">예약 취소 확인</h3>
@@ -744,6 +728,15 @@ export default function HomePage() {
           </form>
         </section>
       ) : null}
+
+      <footer className="flex justify-end pt-1">
+        <Link
+          href="/admin"
+          className="inline-flex items-center rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+        >
+          관리자 페이지
+        </Link>
+      </footer>
     </main>
   );
 }
