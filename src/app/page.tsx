@@ -34,6 +34,7 @@ type AlertNotice = {
 type ReservationForm = {
   studentId: string;
   name: string;
+  phoneNumber: string;
   password: string;
   roomName: RoomName;
   date: string;
@@ -198,6 +199,7 @@ export default function HomePage() {
   const [form, setForm] = useState<ReservationForm>({
     studentId: "",
     name: "",
+    phoneNumber: "",
     password: "",
     roomName: ROOM_NAMES[0],
     date: todayDate,
@@ -355,6 +357,7 @@ export default function HomePage() {
       body: JSON.stringify({
         studentId: form.studentId,
         name: form.name,
+        phoneNumber: form.phoneNumber,
         password: form.password,
         roomName: form.roomName,
         date: form.date,
@@ -550,6 +553,17 @@ export default function HomePage() {
                 className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
               />
             </div>
+
+            <input
+              required
+              inputMode="tel"
+              value={form.phoneNumber}
+              onChange={(event) =>
+                setForm((previous) => ({ ...previous, phoneNumber: event.target.value }))
+              }
+              placeholder="전화번호"
+              className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+            />
 
             <input
               required

@@ -9,6 +9,7 @@ type AdminReservation = {
   id: number;
   studentId: string;
   name: string;
+  phoneNumber: string;
   roomName: RoomName;
   date: string;
   startHour: number;
@@ -712,7 +713,10 @@ export default function AdminPage() {
                       <tr key={reservation.id} className="border-b border-[var(--border)] last:border-b-0">
                         <td className="px-3 py-3">{reservation.id}</td>
                         <td className="px-3 py-3">{reservation.studentId}</td>
-                        <td className="px-3 py-3">{reservation.name}</td>
+                        <td className="px-3 py-3">
+                          <div className="font-medium text-slate-900">{reservation.name}</div>
+                          <div className="text-xs text-slate-600">{reservation.phoneNumber}</div>
+                        </td>
                         <td className="px-3 py-3">{reservation.roomName}</td>
                         <td className="px-3 py-3">{reservation.date}</td>
                         <td className="px-3 py-3">{rangeLabel(reservation.startHour, reservation.endHour)}</td>

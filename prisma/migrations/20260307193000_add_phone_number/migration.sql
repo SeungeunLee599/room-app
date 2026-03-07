@@ -1,0 +1,2 @@
+ALTER TABLE "Reservation"
+ADD COLUMN "phoneNumber" TEXT NOT NULL DEFAULT '';

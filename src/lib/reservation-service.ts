@@ -3,6 +3,7 @@ import { Prisma, type Reservation } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLocalDateString, isValidDateString } from "@/lib/date";
 import { ROOM_NAMES, isValidRoomName, type RoomName } from "@/lib/rooms";
+import { isAllowedStudentName } from "@/lib/student-registry";
 
 export class ApiError extends Error {
   status: number;
@@ -33,6 +34,7 @@ export type AdminReservation = Pick<
   | "id"
   | "studentId"
   | "name"
+  | "phoneNumber"
   | "roomName"
   | "date"
   | "startHour"
@@ -54,6 +56,7 @@ export type AdminBlockedSlot = {
 type CreateReservationInput = {
   studentId: string;
   name: string;
+  phoneNumber: string;
   password: string;
   roomName: string;
   date: string;
@@ -152,6 +155,23 @@ function assertNameAndStudent(studentId: string, name: string): void {
   }
   if (!name) {
     throw new ApiError(400, "이름을 입력하세요.");
+  }
+}
+
+function assertPhoneNumber(phoneNumber: string): void {
+  if (!phoneNumber) {
+    throw new ApiError(400, "연락처를 입력해주세요.");
+  }
+
+  const normalized = phoneNumber.replace(/[\s-]/g, "");
+  if (!/^\d{8,13}$/.test(normalized)) {
+    throw new ApiError(400, "연락처 형식이 올바르지 않습니다.");
+  }
+}
+
+function assertRegisteredStudent(studentId: string, name: string): void {
+  if (!isAllowedStudentName(studentId, name)) {
+    throw new ApiError(400, "등록된 학번-이름 정보와 일치하지 않습니다.");
   }
 }
 
@@ -268,6 +288,7 @@ async function createReservationInTransaction(
         data: {
           studentId: input.studentId,
           name: input.name,
+          phoneNumber: input.phoneNumber,
           passwordHash,
           roomName: input.roomName,
           date: input.date,
@@ -316,6 +337,7 @@ export function parseCreateReservationInput(
   const body = payload as Record<string, unknown>;
   const studentId = parseTrimmedString(body.studentId);
   const name = parseTrimmedString(body.name);
+  const phoneNumber = parseTrimmedString(body.phoneNumber);
   const password = parseTrimmedString(body.password);
   const roomName = parseTrimmedString(body.roomName);
   const date = parseTrimmedString(body.date);
@@ -323,6 +345,8 @@ export function parseCreateReservationInput(
   const endHour = parseInteger(body.endHour);
 
   assertNameAndStudent(studentId, name);
+  assertRegisteredStudent(studentId, name);
+  assertPhoneNumber(phoneNumber);
   assertPin(password);
   assertRoomName(roomName);
   assertDate(date);
@@ -331,6 +355,7 @@ export function parseCreateReservationInput(
   return {
     studentId,
     name,
+    phoneNumber,
     password,
     roomName,
     date,
@@ -509,6 +534,7 @@ export async function getAdminReservations(
       id: true,
       studentId: true,
       name: true,
+      phoneNumber: true,
       roomName: true,
       date: true,
       startHour: true,
