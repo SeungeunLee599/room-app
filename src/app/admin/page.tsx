@@ -922,7 +922,7 @@ export default function AdminPage() {
         </section>
       ) : null}
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
+      <section className="grid gap-6">
         <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900">관리자 인증</h2>
           <form className="mt-4 grid gap-3" onSubmit={onSubmitAuth}>
@@ -940,19 +940,6 @@ export default function AdminPage() {
           </form>
         </article>
 
-        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">조회 필터</h2>
-          <div className="mt-4 flex items-center gap-2">
-            <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" checked={useDateFilter} onChange={(event) => setUseDateFilter(event.target.checked)} />
-              날짜 필터
-            </label>
-            <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} disabled={!useDateFilter} className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm" />
-            <button type="button" onClick={() => setRefreshKey((previous) => previous + 1)} className="h-10 rounded-xl border border-[var(--border)] px-3 text-sm">
-              새로고침
-            </button>
-          </div>
-        </article>
       </section>
 
       {authenticated ? (
@@ -1315,7 +1302,33 @@ export default function AdminPage() {
           </section>
 
           <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">전체 예약 목록</h2>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-lg font-bold text-slate-900">전체 예약 목록</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={useDateFilter}
+                    onChange={(event) => setUseDateFilter(event.target.checked)}
+                  />
+                  날짜 필터
+                </label>
+                <input
+                  type="date"
+                  value={dateFilter}
+                  onChange={(event) => setDateFilter(event.target.value)}
+                  disabled={!useDateFilter}
+                  className="h-10 rounded-xl border border-[var(--border)] bg-white px-3 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setRefreshKey((previous) => previous + 1)}
+                  className="h-10 rounded-xl border border-[var(--border)] px-3 text-sm"
+                >
+                  새로고침
+                </button>
+              </div>
+            </div>
             <div className="mt-4 overflow-x-auto rounded-2xl border border-[var(--border)]">
               <table className="min-w-full border-collapse text-sm">
                 <thead className="bg-[var(--card-soft)] text-slate-700">
