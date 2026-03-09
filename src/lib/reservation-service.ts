@@ -137,6 +137,16 @@ function assertDate(value: string): void {
   }
 }
 
+function assertReservationMonthPolicy(value: string): void {
+  const [year, month] = value.split("-").map(Number);
+  if (year === 2026 && month === 3) {
+    throw new ApiError(
+      400,
+      "2026년 3월은 기존 예약 방식 운영 기간으로 예약이 제한됩니다. 2026년 4월부터 예약해주세요.",
+    );
+  }
+}
+
 function assertDateFormatOnly(value: string): void {
   if (!isValidDateString(value)) {
     throw new ApiError(400, "??됰튋 ?醫롮? ?類ㅻ뻼????而?몴?? ??녿뮸??덈뼄. (YYYY-MM-DD)");
@@ -410,6 +420,7 @@ export function parseCreateReservationInput(
   assertPin(password);
   assertRoomName(roomName);
   assertDate(date);
+  assertReservationMonthPolicy(date);
   assertTimeRange(startHour, endHour);
 
   return {
@@ -661,8 +672,13 @@ export async function getAdminReservations(
     assertDate(date);
   }
 
+  const todayDate = getLocalDateString();
   const reservations = await prisma.reservation.findMany({
-    where: date ? { date } : undefined,
+    where: date
+      ? { date }
+      : {
+          date: { gte: todayDate },
+        },
     orderBy: [{ date: "asc" }, { roomName: "asc" }, { startHour: "asc" }],
     select: {
       id: true,
