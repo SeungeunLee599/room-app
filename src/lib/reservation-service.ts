@@ -192,8 +192,8 @@ function assertPhoneNumber(phoneNumber: string): void {
   }
 }
 
-function assertRegisteredStudent(studentId: string, name: string): void {
-  if (!isAllowedStudentName(studentId, name)) {
+async function assertRegisteredStudent(studentId: string, name: string): Promise<void> {
+  if (!(await isAllowedStudentName(studentId, name))) {
     throw new ApiError(400, "등록된 학번-이름 정보와 일치하지 않습니다.");
   }
 }
@@ -406,7 +406,6 @@ export function parseCreateReservationInput(
   const endHour = parseInteger(body.endHour);
 
   assertNameAndStudent(studentId, name);
-  assertRegisteredStudent(studentId, name);
   assertPhoneNumber(phoneNumber);
   assertPin(password);
   assertRoomName(roomName);
@@ -869,6 +868,8 @@ export async function deleteDateBlockedSlot(dateBlockedSlotId: number): Promise<
 export async function createReservation(
   input: CreateReservationInput,
 ): Promise<PublicReservation> {
+  await assertRegisteredStudent(input.studentId, input.name);
+
   const durationHours = input.endHour - input.startHour;
   const passwordHash = await hash(input.password, 10);
 

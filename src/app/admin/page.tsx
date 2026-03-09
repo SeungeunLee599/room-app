@@ -46,6 +46,11 @@ type BoardNotice = {
   updatedAt: string;
 };
 
+type AllowedStudent = {
+  studentId: string;
+  name: string;
+};
+
 type Notice = {
   kind: "success" | "error";
   text: string;
@@ -70,6 +75,11 @@ type DateBlockedSlotForm = {
 type NoticeForm = {
   title: string;
   content: string;
+};
+
+type AllowedStudentForm = {
+  studentId: string;
+  name: string;
 };
 
 const ROOM_ORDER = new Map(ROOM_NAMES.map((name, index) => [name, index]));
@@ -110,6 +120,57 @@ function formatDateLabel(date: string): string {
   });
 }
 
+function parseBulkAllowedStudents(value: string): {
+  students: AllowedStudent[];
+  invalidRows: number;
+} {
+  const deduped = new Map<string, string>();
+  let invalidRows = 0;
+
+  for (const rawLine of value.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) {
+      continue;
+    }
+
+    const columns = line
+      .split(/\t|,/)
+      .map((item) => item.trim().replace(/^\"|\"$/g, ""));
+
+    if (columns.length < 2) {
+      invalidRows += 1;
+      continue;
+    }
+
+    const studentId = columns[0];
+    const name = columns.slice(1).join(" ").trim();
+
+    const isHeader =
+      (studentId === "학번" && name === "이름") ||
+      (studentId.toLowerCase() === "studentid" &&
+        name.toLowerCase() === "name");
+
+    if (isHeader) {
+      continue;
+    }
+
+    if (!studentId || !name) {
+      invalidRows += 1;
+      continue;
+    }
+
+    deduped.set(studentId, name);
+  }
+
+  return {
+    students: Array.from(deduped.entries()).map(([studentId, name]) => ({
+      studentId,
+      name,
+    })),
+    invalidRows,
+  };
+}
+
 function sortReservations(items: AdminReservation[]): AdminReservation[] {
   return [...items].sort((a, b) => {
     if (a.date !== b.date) {
@@ -147,6 +208,10 @@ function sortDateBlockedSlots(items: AdminDateBlockedSlot[]): AdminDateBlockedSl
     }
     return a.startHour - b.startHour;
   });
+}
+
+function sortAllowedStudents(items: AllowedStudent[]): AllowedStudent[] {
+  return [...items].sort((a, b) => a.studentId.localeCompare(b.studentId));
 }
 
 async function fetchAdminReservations(args: {
@@ -273,6 +338,37 @@ async function fetchAdminNotices(password: string): Promise<{
   };
 }
 
+async function fetchAdminAllowedStudents(password: string): Promise<{
+  ok: boolean;
+  message?: string;
+  students: AllowedStudent[];
+}> {
+  const response = await fetch("/api/admin/allowed-students", {
+    cache: "no-store",
+    headers: {
+      "x-admin-password": password,
+    },
+  });
+
+  const data = (await response.json()) as {
+    message?: string;
+    students?: AllowedStudent[];
+  };
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      message: data.message ?? "학생 명단을 불러오지 못했습니다.",
+      students: [],
+    };
+  }
+
+  return {
+    ok: true,
+    students: data.students ?? [],
+  };
+}
+
 export default function AdminPage() {
   const todayDate = useMemo(() => getLocalDateString(), []);
 
@@ -289,6 +385,7 @@ export default function AdminPage() {
   const [blockedSlots, setBlockedSlots] = useState<AdminBlockedSlot[]>([]);
   const [dateBlockedSlots, setDateBlockedSlots] = useState<AdminDateBlockedSlot[]>([]);
   const [boardNotices, setBoardNotices] = useState<BoardNotice[]>([]);
+  const [allowedStudents, setAllowedStudents] = useState<AllowedStudent[]>([]);
 
   const [blockedForm, setBlockedForm] = useState<BlockedSlotForm>({
     roomName: ROOM_NAMES[0],
@@ -310,6 +407,11 @@ export default function AdminPage() {
     content: "",
   });
   const [editingNoticeId, setEditingNoticeId] = useState<number | null>(null);
+  const [allowedStudentForm, setAllowedStudentForm] = useState<AllowedStudentForm>({
+    studentId: "",
+    name: "",
+  });
+  const [bulkAllowedStudentText, setBulkAllowedStudentText] = useState("");
 
   const loadAdminData = async () => {
     if (!authenticated) {
@@ -319,7 +421,7 @@ export default function AdminPage() {
     setLoading(true);
     setNotice(null);
 
-    const [reservationResult, blockedResult, dateBlockedResult, noticesResult] = await Promise.all([
+    const [reservationResult, blockedResult, dateBlockedResult, noticesResult, studentsResult] = await Promise.all([
       fetchAdminReservations({
         password: adminPassword,
         dateFilter: useDateFilter ? dateFilter : undefined,
@@ -327,9 +429,16 @@ export default function AdminPage() {
       fetchAdminBlockedSlots(adminPassword),
       fetchAdminDateBlockedSlots(adminPassword),
       fetchAdminNotices(adminPassword),
+      fetchAdminAllowedStudents(adminPassword),
     ]);
 
-    if (!reservationResult.ok || !blockedResult.ok || !dateBlockedResult.ok || !noticesResult.ok) {
+    if (
+      !reservationResult.ok ||
+      !blockedResult.ok ||
+      !dateBlockedResult.ok ||
+      !noticesResult.ok ||
+      !studentsResult.ok
+    ) {
       setNotice({
         kind: "error",
         text:
@@ -337,6 +446,7 @@ export default function AdminPage() {
           blockedResult.message ??
           dateBlockedResult.message ??
           noticesResult.message ??
+          studentsResult.message ??
           "관리자 데이터를 불러오지 못했습니다.",
       });
       setLoading(false);
@@ -347,6 +457,7 @@ export default function AdminPage() {
     setBlockedSlots(sortBlockedSlots(blockedResult.blockedSlots));
     setDateBlockedSlots(sortDateBlockedSlots(dateBlockedResult.dateBlockedSlots));
     setBoardNotices(noticesResult.notices);
+    setAllowedStudents(sortAllowedStudents(studentsResult.students));
     setLoading(false);
   };
 
@@ -365,7 +476,7 @@ export default function AdminPage() {
     setLoading(true);
     setNotice(null);
 
-    const [reservationResult, blockedResult, dateBlockedResult, noticesResult] = await Promise.all([
+    const [reservationResult, blockedResult, dateBlockedResult, noticesResult, studentsResult] = await Promise.all([
       fetchAdminReservations({
         password: adminPassword,
         dateFilter: useDateFilter ? dateFilter : undefined,
@@ -373,9 +484,16 @@ export default function AdminPage() {
       fetchAdminBlockedSlots(adminPassword),
       fetchAdminDateBlockedSlots(adminPassword),
       fetchAdminNotices(adminPassword),
+      fetchAdminAllowedStudents(adminPassword),
     ]);
 
-    if (!reservationResult.ok || !blockedResult.ok || !dateBlockedResult.ok || !noticesResult.ok) {
+    if (
+      !reservationResult.ok ||
+      !blockedResult.ok ||
+      !dateBlockedResult.ok ||
+      !noticesResult.ok ||
+      !studentsResult.ok
+    ) {
       setNotice({ kind: "error", text: "관리자 인증에 실패했습니다." });
       setAuthenticated(false);
       setLoading(false);
@@ -387,6 +505,7 @@ export default function AdminPage() {
     setBlockedSlots(sortBlockedSlots(blockedResult.blockedSlots));
     setDateBlockedSlots(sortDateBlockedSlots(dateBlockedResult.dateBlockedSlots));
     setBoardNotices(noticesResult.notices);
+    setAllowedStudents(sortAllowedStudents(studentsResult.students));
     setNotice({ kind: "success", text: "관리자 인증이 완료되었습니다." });
     setLoading(false);
   };
@@ -647,6 +766,114 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  const onSubmitAllowedStudent = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!authenticated) {
+      return;
+    }
+
+    setLoading(true);
+    setNotice(null);
+
+    const response = await fetch("/api/admin/allowed-students", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        adminPassword,
+        studentId: allowedStudentForm.studentId,
+        name: allowedStudentForm.name,
+      }),
+    });
+
+    const data = (await response.json()) as { message?: string };
+    if (!response.ok) {
+      setNotice({ kind: "error", text: data.message ?? "학생 명단 저장에 실패했습니다." });
+      setLoading(false);
+      return;
+    }
+
+    setNotice({ kind: "success", text: data.message ?? "학생 명단을 저장했습니다." });
+    setAllowedStudentForm({ studentId: "", name: "" });
+    setRefreshKey((previous) => previous + 1);
+    setLoading(false);
+  };
+
+  const onDeleteAllowedStudent = async (studentId: string) => {
+    if (!authenticated) {
+      return;
+    }
+
+    setLoading(true);
+    setNotice(null);
+
+    const response = await fetch("/api/admin/allowed-students", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ adminPassword, studentId }),
+    });
+
+    const data = (await response.json()) as { message?: string };
+    if (!response.ok) {
+      setNotice({ kind: "error", text: data.message ?? "학생 삭제에 실패했습니다." });
+      setLoading(false);
+      return;
+    }
+
+    setNotice({ kind: "success", text: data.message ?? "학생을 삭제했습니다." });
+    setRefreshKey((previous) => previous + 1);
+    setLoading(false);
+  };
+
+  const onSubmitBulkAllowedStudents = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!authenticated) {
+      return;
+    }
+
+    const parsed = parseBulkAllowedStudents(bulkAllowedStudentText);
+    if (parsed.students.length === 0) {
+      setNotice({ kind: "error", text: "업로드할 학번/이름 데이터를 입력해주세요." });
+      return;
+    }
+
+    setLoading(true);
+    setNotice(null);
+
+    const response = await fetch("/api/admin/allowed-students", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        adminPassword,
+        students: parsed.students,
+      }),
+    });
+
+    const data = (await response.json()) as { message?: string };
+    if (!response.ok) {
+      setNotice({ kind: "error", text: data.message ?? "일괄 업로드에 실패했습니다." });
+      setLoading(false);
+      return;
+    }
+
+    const ignoredText =
+      parsed.invalidRows > 0
+        ? ` (형식 오류 ${parsed.invalidRows}줄 제외)`
+        : "";
+    setNotice({
+      kind: "success",
+      text: `${data.message ?? "학생 명단을 일괄 저장했습니다."}${ignoredText}`,
+    });
+    setBulkAllowedStudentText("");
+    setRefreshKey((previous) => previous + 1);
+    setLoading(false);
+  };
+
   const todayReservationsCount = reservations.filter((item) => item.date === todayDate).length;
 
   return (
@@ -730,6 +957,121 @@ export default function AdminPage() {
 
       {authenticated ? (
         <>
+          <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">예약 가능 학생 명단 관리</h2>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                학번과 이름이 모두 일치해야 예약됩니다.
+              </p>
+
+              <form className="mt-4 grid gap-3" onSubmit={onSubmitAllowedStudent}>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input
+                    required
+                    value={allowedStudentForm.studentId}
+                    onChange={(event) =>
+                      setAllowedStudentForm((previous) => ({
+                        ...previous,
+                        studentId: event.target.value,
+                      }))
+                    }
+                    placeholder="학번"
+                    className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+                  />
+                  <input
+                    required
+                    value={allowedStudentForm.name}
+                    onChange={(event) =>
+                      setAllowedStudentForm((previous) => ({
+                        ...previous,
+                        name: event.target.value,
+                      }))
+                    }
+                    placeholder="이름"
+                    className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="h-11 rounded-xl bg-[var(--accent)] font-semibold text-white"
+                >
+                  학생 추가/수정 저장
+                </button>
+              </form>
+
+              <form className="mt-5 grid gap-2" onSubmit={onSubmitBulkAllowedStudents}>
+                <label className="text-sm font-semibold text-slate-800">
+                  엑셀 일괄 업로드 (CSV 또는 탭 구분 복붙)
+                </label>
+                <p className="text-xs text-[var(--muted)]">
+                  예시: <code>20201234,홍길동</code> 또는 <code>20201234[TAB]홍길동</code>
+                </p>
+                <textarea
+                  rows={7}
+                  value={bulkAllowedStudentText}
+                  onChange={(event) => setBulkAllowedStudentText(event.target.value)}
+                  placeholder={"학번,이름\n20201234,홍길동\n20204567,김영희"}
+                  className="rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="h-10 rounded-xl bg-emerald-600 font-semibold text-white"
+                >
+                  일괄 저장
+                </button>
+              </form>
+            </article>
+
+            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">등록된 학생 목록</h2>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                총 {allowedStudents.length}명
+              </p>
+
+              <div className="mt-4 max-h-[520px] overflow-auto rounded-2xl border border-[var(--border)]">
+                <table className="min-w-full border-collapse text-sm">
+                  <thead className="bg-[var(--card-soft)] text-slate-700">
+                    <tr className="border-b border-[var(--border)] text-left">
+                      <th className="px-3 py-3 font-semibold">학번</th>
+                      <th className="px-3 py-3 font-semibold">이름</th>
+                      <th className="px-3 py-3 font-semibold">작업</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    {allowedStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="px-3 py-6 text-center text-[var(--muted)]">
+                          등록된 학생이 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      allowedStudents.map((student) => (
+                        <tr
+                          key={student.studentId}
+                          className="border-b border-[var(--border)] last:border-b-0"
+                        >
+                          <td className="px-3 py-3">{student.studentId}</td>
+                          <td className="px-3 py-3">{student.name}</td>
+                          <td className="px-3 py-3">
+                            <button
+                              type="button"
+                              onClick={() => onDeleteAllowedStudent(student.studentId)}
+                              className="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-700"
+                            >
+                              삭제
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+
           <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
             <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
               <h2 className="text-lg font-bold text-slate-900">예약 불가 시간대 등록</h2>
