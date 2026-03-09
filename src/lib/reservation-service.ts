@@ -669,7 +669,7 @@ export async function getAdminReservations(
   date?: string,
 ): Promise<AdminReservation[]> {
   if (date) {
-    assertDate(date);
+    assertDateFormatOnly(date);
   }
 
   const todayDate = getLocalDateString();
