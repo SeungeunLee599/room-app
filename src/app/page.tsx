@@ -179,7 +179,7 @@ async function fetchReservationsByDate(
     };
   }
 
-  const response = await fetch(`/api/reservations?date=${date}`, { cache: "no-store" });
+  const response = await fetch(`/api/public-reservations?date=${date}`, { cache: "no-store" });
   const data = (await response.json()) as {
     message?: string;
     reservations?: PublicReservation[];
