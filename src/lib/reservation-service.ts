@@ -205,7 +205,7 @@ function assertReservationStartDate(value: string): void {
   if (value < serviceStartDate) {
     throw new ApiError(
       400,
-      "일반 사용자 예약은 2026-04-01부터 가능합니다. 관리자 기능은 계속 사용할 수 있습니다.",
+      "일반 사용자 예약은 2026-04-01부터 가능합니다.",
     );
   }
 }
