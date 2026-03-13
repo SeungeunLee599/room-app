@@ -140,6 +140,35 @@ function sortReservations(items: PublicReservation[]): PublicReservation[] {
   });
 }
 
+function normalizeMessage(message: string | undefined, fallback: string): string {
+  if (!message) {
+    return fallback;
+  }
+
+  const suspiciousTokens = [
+    "??",
+    "湲곕",
+    "李",
+    "媛숈",
+    "鍮꾨",
+    "諛섎",
+    "쇳쉶",
+    "泥섎",
+    "李얠",
+    "뺤떇",
+    "?덉",
+    "?붿",
+    "?숇",
+    "?대",
+  ];
+
+  if (message.includes("�") || suspiciousTokens.some((token) => message.includes(token))) {
+    return fallback;
+  }
+
+  return message;
+}
+
 async function fetchReservationsByDate(
   date: string,
 ): Promise<{ ok: boolean; message?: string; reservations: PublicReservation[] }> {
@@ -152,7 +181,7 @@ async function fetchReservationsByDate(
   if (!response.ok) {
     return {
       ok: false,
-      message: data.message ?? "예약 목록을 불러오지 못했습니다.",
+      message: normalizeMessage(data.message, "예약 목록을 불러오지 못했습니다."),
       reservations: [],
     };
   }
@@ -170,7 +199,7 @@ async function fetchNotices(): Promise<{ ok: boolean; message?: string; notices:
   if (!response.ok) {
     return {
       ok: false,
-      message: data.message ?? "공지사항을 불러오지 못했습니다.",
+      message: normalizeMessage(data.message, "공지사항을 불러오지 못했습니다."),
       notices: [],
     };
   }
@@ -372,13 +401,13 @@ export default function HomePage() {
     if (!response.ok) {
       setNotice({
         kind: "error",
-        text: data.message ?? "예약 생성에 실패했습니다.",
+        text: normalizeMessage(data.message, "예약 생성에 실패했습니다."),
       });
       setLoadingCreate(false);
       return;
     }
 
-    setNotice({ kind: "success", text: data.message ?? "예약이 완료되었습니다." });
+    setNotice({ kind: "success", text: normalizeMessage(data.message, "예약이 완료되었습니다.") });
     setForm((previous) => ({
       ...previous,
       password: "",
@@ -416,13 +445,13 @@ export default function HomePage() {
     if (!response.ok) {
       setNotice({
         kind: "error",
-        text: data.message ?? "예약 취소에 실패했습니다.",
+        text: normalizeMessage(data.message, "예약 취소에 실패했습니다."),
       });
       setLoadingCancel(false);
       return;
     }
 
-    setNotice({ kind: "success", text: data.message ?? "예약이 취소되었습니다." });
+    setNotice({ kind: "success", text: normalizeMessage(data.message, "예약이 취소되었습니다.") });
     setSelectedForCancel(null);
     setCancelForm({ studentId: "", name: "", password: "" });
     setRefreshKey((previous) => previous + 1);
