@@ -252,6 +252,7 @@ export default function HomePage() {
         setViewReservations([]);
       } else {
         setViewReservations(sortReservations(result.reservations));
+        setNotice((previous) => (previous?.kind === "error" ? null : previous));
       }
       setLoadingSchedule(false);
     };
@@ -337,7 +338,7 @@ export default function HomePage() {
     if (blockedConflict) {
       setNotice({
         kind: "error",
-        text: `예약 불가 시간입니다: ${blockedConflict.blockedReason ?? blockedConflict.name}`,
+        text: `예약 불가 시간입니다. ${blockedConflict.blockedReason ?? blockedConflict.name}`,
       });
       return;
     }
@@ -444,14 +445,14 @@ export default function HomePage() {
 
         <div className="relative mt-5 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
           <span className="rounded-full border border-white/80 bg-white/85 px-3 py-1 text-[#51688e] shadow-sm">
-            Today {formatDateLabel(todayDate)}
+            오늘 {formatDateLabel(todayDate)}
           </span>
         </div>
       </section>
 
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-2">
-          <h2 className="shrink-0 whitespace-nowrap text-base font-bold tracking-tight text-slate-900 sm:text-xl">예약 목록</h2>
+          <h2 className="shrink-0 whitespace-nowrap text-base font-bold tracking-tight text-slate-900 sm:text-xl">오늘 예약 현황</h2>
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             <input
               type="date"
@@ -490,7 +491,7 @@ export default function HomePage() {
                         : "bg-amber-100 text-amber-700"
                     }`}
                   >
-                    {reservations.length === 0 ? "AVAILABLE" : `${reservations.length}건`}
+                    {reservations.length === 0 ? "예약 가능" : `${reservations.length}건`}
                   </span>
                 </div>
 
@@ -526,10 +527,10 @@ export default function HomePage() {
           <div className="mb-4 flex items-center justify-between">
             <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
               <h2 className="whitespace-nowrap text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 신청</h2>
-              <p className="text-xs text-slate-500">하루 최대 3시간까지 예약 가능합니다.</p>
+              <p className="text-xs text-slate-500">같은 학번은 같은 날짜에 최대 3시간까지만 예약할 수 있습니다.</p>
             </div>
             <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
-              NEW BOOKING
+              신규 예약
             </span>
           </div>
 
@@ -635,7 +636,7 @@ export default function HomePage() {
                   const state = hourStates.get(hour) ?? "open";
                   const suffix =
                     state === "blocked"
-                      ? "(차단됨)"
+                      ? "(차단)"
                       : state === "reserved"
                         ? "(예약됨)"
                         : "";
@@ -677,7 +678,7 @@ export default function HomePage() {
               disabled={loadingCreate}
               className="mt-1 h-11 rounded-xl bg-[var(--accent)] font-semibold text-white transition hover:brightness-105 disabled:opacity-60"
             >
-              {loadingCreate ? "저장 중..." : "예약하기"}
+              {loadingCreate ? "예약 중..." : "예약하기"}
             </button>
           </form>
         </article>

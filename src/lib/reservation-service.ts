@@ -126,6 +126,34 @@ function isSchemaMismatchError(error: unknown): boolean {
   );
 }
 
+function isOptionalBlockedSlotReadError(error: unknown): boolean {
+  if (isSchemaMismatchError(error)) {
+    return true;
+  }
+
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  const mentionsBlockedSlot =
+    message.includes("blockedslot") ||
+    message.includes("dateblockedslot") ||
+    message.includes("blocked_slot") ||
+    message.includes("date_blocked_slot");
+
+  if (!mentionsBlockedSlot) {
+    return false;
+  }
+
+  return (
+    message.includes("does not exist") ||
+    message.includes("unknown") ||
+    message.includes("not found") ||
+    message.includes("relation")
+  );
+}
+
 function migrationRequiredMessage(feature: string): string {
   return `${feature} 기능을 사용하려면 데이터베이스 마이그레이션이 필요합니다. 최신 버전으로 다시 배포하거나 prisma migrate deploy를 적용하세요.`;
 }
@@ -322,7 +350,7 @@ async function findBlockedOverlapForReservation(
       select: { reason: true },
     });
   } catch (error) {
-    if (isSchemaMismatchError(error)) {
+    if (isOptionalBlockedSlotReadError(error)) {
       return null;
     }
     throw error;
@@ -635,7 +663,7 @@ export async function getPublicReservationsByDate(
       },
     });
   } catch (error) {
-    if (!isSchemaMismatchError(error)) {
+    if (!isOptionalBlockedSlotReadError(error)) {
       throw error;
     }
   }
@@ -655,7 +683,7 @@ export async function getPublicReservationsByDate(
       },
     });
   } catch (error) {
-    if (!isSchemaMismatchError(error)) {
+    if (!isOptionalBlockedSlotReadError(error)) {
       throw error;
     }
   }
@@ -809,7 +837,7 @@ export async function getAdminBlockedSlots(
       .map(mapAdminBlockedSlot)
       .filter((slot): slot is AdminBlockedSlot => slot !== null);
   } catch (error) {
-    if (isSchemaMismatchError(error)) {
+    if (isOptionalBlockedSlotReadError(error)) {
       return [];
     }
     throw error;
@@ -842,7 +870,7 @@ export async function getAdminDateBlockedSlots(
       .map(mapAdminDateBlockedSlot)
       .filter((slot): slot is AdminDateBlockedSlot => slot !== null);
   } catch (error) {
-    if (isSchemaMismatchError(error)) {
+    if (isOptionalBlockedSlotReadError(error)) {
       return [];
     }
     throw error;
