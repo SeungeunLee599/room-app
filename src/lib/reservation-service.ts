@@ -582,7 +582,7 @@ export function parseDateBlockedSlotId(payload: unknown): number {
 export async function getPublicReservationsByDate(
   date: string,
 ): Promise<PublicReservation[]> {
-  assertDate(date);
+  assertDateFormatOnly(date);
   const weekday = getWeekdayFromDate(date);
 
   const reservations = await prisma.reservation.findMany({

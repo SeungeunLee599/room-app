@@ -455,8 +455,6 @@ export default function HomePage() {
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             <input
               type="date"
-              min={todayDate}
-              max={maxBookingDate}
               value={boardDate}
               onChange={(event) => setBoardDate(event.target.value)}
               className="h-9 w-[132px] rounded-xl border border-[var(--border)] bg-white px-2 text-xs sm:h-10 sm:w-auto sm:px-3 sm:text-sm"
