@@ -277,7 +277,7 @@ export default function HomePage() {
         return;
       }
       if (!result.ok) {
-        setNotice({ kind: "error", text: result.message ?? "예약 현황을 불러오지 못했습니다." });
+        setNotice({ kind: "error", text: "예약 목록을 불러오지 못했습니다." });
         setViewReservations([]);
       } else {
         setViewReservations(sortReservations(result.reservations));
