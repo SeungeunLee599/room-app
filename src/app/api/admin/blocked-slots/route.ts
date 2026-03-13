@@ -54,7 +54,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const blockedSlot = await createBlockedSlot(input);
 
     return NextResponse.json(
-      { message: "예약 불가 시간이 등록되었습니다.", blockedSlot },
+      { message: "반복 예약 불가 시간이 등록되었습니다.", blockedSlot },
       { status: 201 },
     );
   } catch (error) {
@@ -73,7 +73,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     const blockedSlotId = parseBlockedSlotId(payload);
     await deleteBlockedSlot(blockedSlotId);
 
-    return NextResponse.json({ message: "예약 불가 시간이 삭제되었습니다." });
+    return NextResponse.json({ message: "반복 예약 불가 시간이 삭제되었습니다." });
   } catch (error) {
     return handleApiError(error);
   }

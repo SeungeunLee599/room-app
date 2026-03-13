@@ -119,9 +119,20 @@ function getWeekdayFromDate(value: string): number {
   return new Date(year, month - 1, day).getDay();
 }
 
+function isSchemaMismatchError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022")
+  );
+}
+
+function migrationRequiredMessage(feature: string): string {
+  return `${feature} 기능을 사용하려면 데이터베이스 마이그레이션이 필요합니다. 최신 버전으로 다시 배포하거나 prisma migrate deploy를 적용하세요.`;
+}
+
 function assertDate(value: string): void {
   if (!isValidDateString(value)) {
-    throw new ApiError(400, "???고뒎 ??ル‘? ?筌먦끇六??????紐?? ???용????덈펲. (YYYY-MM-DD)");
+    throw new ApiError(400, "예약 날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)");
   }
 
   const [year, month, day] = value.split("-").map(Number);
@@ -133,72 +144,74 @@ function assertDate(value: string): void {
   maxDate.setDate(maxDate.getDate() + 14);
 
   if (selectedDate < today || selectedDate > maxDate) {
-    throw new ApiError(400, "???고뒎 ??ル‘??????노츓?遊붋??14?????亦끸댙彛???ルㅎ臾???????곕????덈펲.");
+    throw new ApiError(400, "예약 날짜는 오늘부터 14일 이내에서만 선택할 수 있습니다.");
   }
 }
 
-function assertReservationMonthPolicy(value: string): void {
-  const [year, month] = value.split("-").map(Number);
-  if (year === 2026 && month === 3) {
+function assertReservationStartDate(value: string): void {
+  const serviceStartDate = "2026-04-01";
+
+  if (value < serviceStartDate) {
     throw new ApiError(
       400,
-      "2026년 3월은 기존 예약 방식 운영 기간으로 예약이 제한됩니다. 2026년 4월부터 예약해주세요.",
+      "일반 사용자 예약은 2026-04-01부터 가능합니다. 관리자 기능은 계속 사용할 수 있습니다.",
     );
   }
 }
 
 function assertDateFormatOnly(value: string): void {
   if (!isValidDateString(value)) {
-    throw new ApiError(400, "??됰튋 ?醫롮? ?類ㅻ뻼????而?몴?? ??녿뮸??덈뼄. (YYYY-MM-DD)");
+    throw new ApiError(400, "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)");
   }
 }
+
 function assertRoomName(value: string): asserts value is RoomName {
   if (!isValidRoomName(value)) {
-    throw new ApiError(400, "??ル쪇???? ??? ?????藥???낅퉵??");
+    throw new ApiError(400, "유효하지 않은 방 이름입니다.");
   }
 }
 
 function assertPin(password: string): void {
   if (!/^\d{4}$/.test(password)) {
-    throw new ApiError(400, "?????뺢퀡????4???遊???????????紐껊퉵??");
+    throw new ApiError(400, "비밀번호는 4자리 숫자여야 합니다.");
   }
 }
 
 function assertWeekday(weekday: number): void {
   if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
-    throw new ApiError(400, "??븐슦逾??띠룆???????紐?? ???용????덈펲. (0:??源녿뭵??~ 6:??ル‘???");
+    throw new ApiError(400, "요일 값이 올바르지 않습니다. (0: 일요일 ~ 6: 토요일)");
   }
 }
 
 function assertTimeRange(startHour: number, endHour: number): void {
   if (!Number.isInteger(startHour) || !Number.isInteger(endHour)) {
-    throw new ApiError(400, "??戮곗굚/??リ턁筌???蹂?뜟?? ?筌?????關留??筌먦끇????????紐껊퉵??");
+    throw new ApiError(400, "시작 시간과 종료 시간은 정각 단위의 정수여야 합니다.");
   }
   if (startHour < 0 || startHour > 23 || endHour < 1 || endHour > 24) {
-    throw new ApiError(400, "??蹂?뜟 ?뺢퀡????00:00?遊붋??24:00 ?????????紐껊퉵??");
+    throw new ApiError(400, "시간 범위는 00:00부터 24:00 사이여야 합니다.");
   }
   if (endHour <= startHour) {
-    throw new ApiError(400, "??リ턁筌???蹂?뜟?? ??戮곗굚 ??蹂?뜟?곌랜??????????紐껊퉵??");
+    throw new ApiError(400, "종료 시간은 시작 시간보다 늦어야 합니다.");
   }
 }
 
 function assertNameAndStudent(studentId: string, name: string): void {
   if (!studentId) {
-    throw new ApiError(400, "???쀬벐?????놁졑??琉얠돪??");
+    throw new ApiError(400, "학번을 입력해주세요.");
   }
   if (!name) {
-    throw new ApiError(400, "???藥?????놁졑??琉얠돪??");
+    throw new ApiError(400, "이름을 입력해주세요.");
   }
 }
 
 function assertPhoneNumber(phoneNumber: string): void {
   if (!phoneNumber) {
-    throw new ApiError(400, "??⑤벡逾?춯節뚭섬? ???놁졑??怨삵룖?筌뤾쑴??");
+    throw new ApiError(400, "전화번호를 입력해주세요.");
   }
 
   const normalized = phoneNumber.replace(/[\s-]/g, "");
   if (!/^\d{8,13}$/.test(normalized)) {
-    throw new ApiError(400, "??⑤벡逾?춯??筌먦끇六??????紐?? ???용????덈펲.");
+    throw new ApiError(400, "전화번호 형식이 올바르지 않습니다.");
   }
 }
 
@@ -280,6 +293,42 @@ function isRetryableTransactionError(error: unknown): boolean {
   );
 }
 
+async function findBlockedOverlapForReservation(
+  tx: Prisma.TransactionClient,
+  input: CreateReservationInput,
+): Promise<{ reason: string } | null> {
+  try {
+    const blocked = await tx.blockedSlot.findFirst({
+      where: {
+        roomName: input.roomName,
+        weekday: getWeekdayFromDate(input.date),
+        startHour: { lt: input.endHour },
+        endHour: { gt: input.startHour },
+      },
+      select: { reason: true },
+    });
+
+    if (blocked) {
+      return blocked;
+    }
+
+    return await tx.dateBlockedSlot.findFirst({
+      where: {
+        roomName: input.roomName,
+        date: input.date,
+        startHour: { lt: input.endHour },
+        endHour: { gt: input.startHour },
+      },
+      select: { reason: true },
+    });
+  } catch (error) {
+    if (isSchemaMismatchError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 async function createReservationInTransaction(
   input: CreateReservationInput,
   passwordHash: string,
@@ -289,38 +338,13 @@ async function createReservationInTransaction(
     async (tx) => {
       const roomLockKey = toLockKey(`room:${input.roomName}:${input.date}`);
       const studentLockKey = toLockKey(`student:${input.studentId}:${input.date}`);
-      const weekday = getWeekdayFromDate(input.date);
 
-      // Same room/date and same student/date requests are serialized inside one transaction.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${roomLockKey})`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${studentLockKey})`;
 
-      const blocked = await tx.blockedSlot.findFirst({
-        where: {
-          roomName: input.roomName,
-          weekday,
-          startHour: { lt: input.endHour },
-          endHour: { gt: input.startHour },
-        },
-        select: { id: true, reason: true },
-      });
-
+      const blocked = await findBlockedOverlapForReservation(tx, input);
       if (blocked) {
-        throw new ApiError(409, `???고뒎 ?釉띾쐝? ??蹂?뜟???낅퉵?? ${blocked.reason}`);
-      }
-
-      const dateBlocked = await tx.dateBlockedSlot.findFirst({
-        where: {
-          roomName: input.roomName,
-          date: input.date,
-          startHour: { lt: input.endHour },
-          endHour: { gt: input.startHour },
-        },
-        select: { id: true, reason: true },
-      });
-
-      if (dateBlocked) {
-        throw new ApiError(409, `???고뒎 ?釉띾쐝? ??蹂?뜟???낅퉵?? ${dateBlocked.reason}`);
+        throw new ApiError(409, `예약 불가 시간입니다. 사유: ${blocked.reason}`);
       }
 
       const overlapped = await tx.reservation.findFirst({
@@ -334,7 +358,7 @@ async function createReservationInTransaction(
       });
 
       if (overlapped) {
-        throw new ApiError(409, "???? ???고뒎????蹂?뜟???낅퉵??");
+        throw new ApiError(409, "이미 예약된 시간입니다.");
       }
 
       const usage = await tx.reservation.aggregate({
@@ -351,7 +375,7 @@ async function createReservationInTransaction(
       if (usedHours + durationHours > 3) {
         throw new ApiError(
           400,
-          "?띠룇?? ??ル‘????裕?嶺뚣끉裕? 3??蹂?뜟濚밸Ŧ??嶺????고뒎 ?띠럾??繞③뜮????덈펲",
+          "같은 학번은 같은 날짜에 최대 3시간까지만 예약할 수 있습니다.",
         );
       }
 
@@ -380,7 +404,7 @@ async function createReservationInTransaction(
       });
 
       if (!isValidRoomName(created.roomName)) {
-        throw new ApiError(500, "???고뒎 ??⑥щ턄??⑥ロ뱺 ??ル쪇???? ??? ?????藥?????곕????덈펲.");
+        throw new ApiError(500, "예약 저장 후 방 이름을 확인하지 못했습니다.");
       }
 
       return {
@@ -402,7 +426,7 @@ export function parseCreateReservationInput(
   payload: unknown,
 ): CreateReservationInput {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "??븐슙???筌먦끇六??????紐?? ???용????덈펲.");
+    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
   }
 
   const body = payload as Record<string, unknown>;
@@ -420,7 +444,7 @@ export function parseCreateReservationInput(
   assertPin(password);
   assertRoomName(roomName);
   assertDate(date);
-  assertReservationMonthPolicy(date);
+  assertReservationStartDate(date);
   assertTimeRange(startHour, endHour);
 
   return {
@@ -437,7 +461,7 @@ export function parseCreateReservationInput(
 
 export function parseCreateBlockedSlotInput(payload: unknown): CreateBlockedSlotInput {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "??븐슙???筌먦끇六??????紐?? ???용????덈펲.");
+    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
   }
 
   const body = payload as Record<string, unknown>;
@@ -452,7 +476,7 @@ export function parseCreateBlockedSlotInput(payload: unknown): CreateBlockedSlot
   assertTimeRange(startHour, endHour);
 
   if (!reason) {
-    throw new ApiError(400, "???고뒎 ?釉띾쐝? ?????????놁졑??琉얠돪??");
+    throw new ApiError(400, "예약 불가 사유를 입력해주세요.");
   }
 
   return {
@@ -466,7 +490,7 @@ export function parseCreateBlockedSlotInput(payload: unknown): CreateBlockedSlot
 
 export function parseCreateDateBlockedSlotInput(payload: unknown): CreateDateBlockedSlotInput {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "??븐슙???筌먦끇六??????紐?? ???용????덈펲.");
+    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
   }
 
   const body = payload as Record<string, unknown>;
@@ -481,7 +505,7 @@ export function parseCreateDateBlockedSlotInput(payload: unknown): CreateDateBlo
   assertTimeRange(startHour, endHour);
 
   if (!reason) {
-    throw new ApiError(400, "???고뒎 ?釉띾쐝? ?????????놁졑??琉얠돪??");
+    throw new ApiError(400, "예약 불가 사유를 입력해주세요.");
   }
 
   return {
@@ -495,7 +519,7 @@ export function parseCreateDateBlockedSlotInput(payload: unknown): CreateDateBlo
 
 export function parseCancelByUserInput(payload: unknown): CancelByUserInput {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "??븐슙???筌먦끇六??????紐?? ???용????덈펲.");
+    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
   }
 
   const body = payload as Record<string, unknown>;
@@ -505,7 +529,7 @@ export function parseCancelByUserInput(payload: unknown): CancelByUserInput {
   const password = parseTrimmedString(body.password);
 
   if (!Number.isInteger(reservationId) || reservationId <= 0) {
-    throw new ApiError(400, "???고뒎 ID?띠럾? ????紐?? ???용????덈펲.");
+    throw new ApiError(400, "예약 ID가 올바르지 않습니다.");
   }
   assertNameAndStudent(studentId, name);
   assertPin(password);
@@ -515,25 +539,27 @@ export function parseCancelByUserInput(payload: unknown): CancelByUserInput {
 
 export function parseReservationId(payload: unknown): number {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "??븐슙???筌먦끇六??????紐?? ???용????덈펲.");
+    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
   }
+
   const body = payload as Record<string, unknown>;
   const reservationId = parseInteger(body.reservationId);
   if (!Number.isInteger(reservationId) || reservationId <= 0) {
-    throw new ApiError(400, "???고뒎 ID?띠럾? ????紐?? ???용????덈펲.");
+    throw new ApiError(400, "예약 ID가 올바르지 않습니다.");
   }
+
   return reservationId;
 }
 
 export function parseBlockedSlotId(payload: unknown): number {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "??븐슙???筌먦끇六??????紐?? ???용????덈펲.");
+    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
   }
 
   const body = payload as Record<string, unknown>;
   const blockedSlotId = parseInteger(body.blockedSlotId);
   if (!Number.isInteger(blockedSlotId) || blockedSlotId <= 0) {
-    throw new ApiError(400, "嶺뚢뼰維??????ID?띠럾? ????紐?? ???용????덈펲.");
+    throw new ApiError(400, "반복 차단 시간 ID가 올바르지 않습니다.");
   }
 
   return blockedSlotId;
@@ -541,13 +567,13 @@ export function parseBlockedSlotId(payload: unknown): number {
 
 export function parseDateBlockedSlotId(payload: unknown): number {
   if (!payload || typeof payload !== "object") {
-    throw new ApiError(400, "??븐슙???筌먦끇六??????紐?? ???용????덈펲.");
+    throw new ApiError(400, "요청 형식이 올바르지 않습니다.");
   }
 
   const body = payload as Record<string, unknown>;
   const dateBlockedSlotId = parseInteger(body.dateBlockedSlotId);
   if (!Number.isInteger(dateBlockedSlotId) || dateBlockedSlotId <= 0) {
-    throw new ApiError(400, "嶺뚢뼰維??????ID?띠럾? ????紐?? ???용????덈펲.");
+    throw new ApiError(400, "일회성 차단 시간 ID가 올바르지 않습니다.");
   }
 
   return dateBlockedSlotId;
@@ -574,33 +600,65 @@ export async function getPublicReservationsByDate(
     },
   });
 
-  const blockedSlots = await prisma.blockedSlot.findMany({
-    where: { weekday },
-    orderBy: [{ roomName: "asc" }, { startHour: "asc" }, { createdAt: "asc" }],
-    select: {
-      id: true,
-      roomName: true,
-      weekday: true,
-      startHour: true,
-      endHour: true,
-      reason: true,
-      createdAt: true,
-    },
-  });
+  let blockedSlots: Array<{
+    id: number;
+    roomName: string;
+    weekday: number;
+    startHour: number;
+    endHour: number;
+    reason: string;
+    createdAt: Date;
+  }> = [];
 
-  const dateBlockedSlots = await prisma.dateBlockedSlot.findMany({
-    where: { date },
-    orderBy: [{ roomName: "asc" }, { startHour: "asc" }, { createdAt: "asc" }],
-    select: {
-      id: true,
-      roomName: true,
-      date: true,
-      startHour: true,
-      endHour: true,
-      reason: true,
-      createdAt: true,
-    },
-  });
+  let dateBlockedSlots: Array<{
+    id: number;
+    roomName: string;
+    date: string;
+    startHour: number;
+    endHour: number;
+    reason: string;
+    createdAt: Date;
+  }> = [];
+
+  try {
+    blockedSlots = await prisma.blockedSlot.findMany({
+      where: { weekday },
+      orderBy: [{ roomName: "asc" }, { startHour: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        roomName: true,
+        weekday: true,
+        startHour: true,
+        endHour: true,
+        reason: true,
+        createdAt: true,
+      },
+    });
+  } catch (error) {
+    if (!isSchemaMismatchError(error)) {
+      throw error;
+    }
+  }
+
+  try {
+    dateBlockedSlots = await prisma.dateBlockedSlot.findMany({
+      where: { date },
+      orderBy: [{ roomName: "asc" }, { startHour: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        roomName: true,
+        date: true,
+        startHour: true,
+        endHour: true,
+        reason: true,
+        createdAt: true,
+      },
+    });
+  } catch (error) {
+    if (!isSchemaMismatchError(error)) {
+      throw error;
+    }
+  }
 
   const mappedReservations: PublicReservation[] = reservations
     .filter((reservation): reservation is typeof reservation & { roomName: RoomName } =>
@@ -673,28 +731,56 @@ export async function getAdminReservations(
   }
 
   const todayDate = getLocalDateString();
-  const reservations = await prisma.reservation.findMany({
-    where: date
-      ? { date }
-      : {
-          date: { gte: todayDate },
-        },
-    orderBy: [{ date: "asc" }, { roomName: "asc" }, { startHour: "asc" }],
-    select: {
-      id: true,
-      studentId: true,
-      name: true,
-      phoneNumber: true,
-      roomName: true,
-      date: true,
-      startHour: true,
-      endHour: true,
-      durationHours: true,
-      createdAt: true,
-    },
-  });
+  const where = date
+    ? { date }
+    : {
+        date: { gte: todayDate },
+      };
 
-  return reservations.map(mapAdminReservation);
+  try {
+    const reservations = await prisma.reservation.findMany({
+      where,
+      orderBy: [{ date: "asc" }, { roomName: "asc" }, { startHour: "asc" }],
+      select: {
+        id: true,
+        studentId: true,
+        name: true,
+        phoneNumber: true,
+        roomName: true,
+        date: true,
+        startHour: true,
+        endHour: true,
+        durationHours: true,
+        createdAt: true,
+      },
+    });
+
+    return reservations.map(mapAdminReservation);
+  } catch (error) {
+    if (!isSchemaMismatchError(error)) {
+      throw error;
+    }
+
+    const fallbackReservations = await prisma.reservation.findMany({
+      where,
+      orderBy: [{ date: "asc" }, { roomName: "asc" }, { startHour: "asc" }],
+      select: {
+        id: true,
+        studentId: true,
+        name: true,
+        roomName: true,
+        date: true,
+        startHour: true,
+        endHour: true,
+        durationHours: true,
+        createdAt: true,
+      },
+    });
+
+    return fallbackReservations.map((reservation) =>
+      mapAdminReservation({ ...reservation, phoneNumber: "" }),
+    );
+  }
 }
 
 export async function getAdminBlockedSlots(
@@ -704,23 +790,30 @@ export async function getAdminBlockedSlots(
     assertWeekday(weekday);
   }
 
-  const blockedSlots = await prisma.blockedSlot.findMany({
-    where: typeof weekday === "number" ? { weekday } : undefined,
-    orderBy: [{ weekday: "asc" }, { roomName: "asc" }, { startHour: "asc" }],
-    select: {
-      id: true,
-      roomName: true,
-      weekday: true,
-      startHour: true,
-      endHour: true,
-      reason: true,
-      createdAt: true,
-    },
-  });
+  try {
+    const blockedSlots = await prisma.blockedSlot.findMany({
+      where: typeof weekday === "number" ? { weekday } : undefined,
+      orderBy: [{ weekday: "asc" }, { roomName: "asc" }, { startHour: "asc" }],
+      select: {
+        id: true,
+        roomName: true,
+        weekday: true,
+        startHour: true,
+        endHour: true,
+        reason: true,
+        createdAt: true,
+      },
+    });
 
-  return blockedSlots
-    .map(mapAdminBlockedSlot)
-    .filter((slot): slot is AdminBlockedSlot => slot !== null);
+    return blockedSlots
+      .map(mapAdminBlockedSlot)
+      .filter((slot): slot is AdminBlockedSlot => slot !== null);
+  } catch (error) {
+    if (isSchemaMismatchError(error)) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function getAdminDateBlockedSlots(
@@ -730,155 +823,202 @@ export async function getAdminDateBlockedSlots(
     assertDateFormatOnly(date);
   }
 
-  const dateBlockedSlots = await prisma.dateBlockedSlot.findMany({
-    where: date ? { date } : undefined,
-    orderBy: [{ date: "asc" }, { roomName: "asc" }, { startHour: "asc" }],
-    select: {
-      id: true,
-      roomName: true,
-      date: true,
-      startHour: true,
-      endHour: true,
-      reason: true,
-      createdAt: true,
-    },
-  });
+  try {
+    const dateBlockedSlots = await prisma.dateBlockedSlot.findMany({
+      where: date ? { date } : undefined,
+      orderBy: [{ date: "asc" }, { roomName: "asc" }, { startHour: "asc" }],
+      select: {
+        id: true,
+        roomName: true,
+        date: true,
+        startHour: true,
+        endHour: true,
+        reason: true,
+        createdAt: true,
+      },
+    });
 
-  return dateBlockedSlots
-    .map(mapAdminDateBlockedSlot)
-    .filter((slot): slot is AdminDateBlockedSlot => slot !== null);
+    return dateBlockedSlots
+      .map(mapAdminDateBlockedSlot)
+      .filter((slot): slot is AdminDateBlockedSlot => slot !== null);
+  } catch (error) {
+    if (isSchemaMismatchError(error)) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function createBlockedSlot(
   input: CreateBlockedSlotInput,
 ): Promise<AdminBlockedSlot> {
-  const overlapped = await prisma.blockedSlot.findFirst({
-    where: {
-      roomName: input.roomName,
-      weekday: input.weekday,
-      startHour: { lt: input.endHour },
-      endHour: { gt: input.startHour },
-    },
-    select: { id: true },
-  });
+  try {
+    const overlapped = await prisma.blockedSlot.findFirst({
+      where: {
+        roomName: input.roomName,
+        weekday: input.weekday,
+        startHour: { lt: input.endHour },
+        endHour: { gt: input.startHour },
+      },
+      select: { id: true },
+    });
 
-  if (overlapped) {
-    throw new ApiError(409, "???? 嶺뚢뼰維?????蹂?뜟???롪퍓?????덈펲.");
+    if (overlapped) {
+      throw new ApiError(409, "같은 요일과 방의 겹치는 차단 시간이 이미 등록되어 있습니다.");
+    }
+
+    const created = await prisma.blockedSlot.create({
+      data: {
+        roomName: input.roomName,
+        weekday: input.weekday,
+        startHour: input.startHour,
+        endHour: input.endHour,
+        reason: input.reason,
+      },
+      select: {
+        id: true,
+        roomName: true,
+        weekday: true,
+        startHour: true,
+        endHour: true,
+        reason: true,
+        createdAt: true,
+      },
+    });
+
+    const mapped = mapAdminBlockedSlot(created);
+    if (!mapped) {
+      throw new ApiError(500, "차단 시간 저장 후 방 이름을 확인하지 못했습니다.");
+    }
+
+    return mapped;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    if (isSchemaMismatchError(error)) {
+      throw new ApiError(503, migrationRequiredMessage("반복 예약 불가 시간 등록"));
+    }
+    throw error;
   }
-
-  const created = await prisma.blockedSlot.create({
-    data: {
-      roomName: input.roomName,
-      weekday: input.weekday,
-      startHour: input.startHour,
-      endHour: input.endHour,
-      reason: input.reason,
-    },
-    select: {
-      id: true,
-      roomName: true,
-      weekday: true,
-      startHour: true,
-      endHour: true,
-      reason: true,
-      createdAt: true,
-    },
-  });
-
-  const mapped = mapAdminBlockedSlot(created);
-  if (!mapped) {
-    throw new ApiError(500, "嶺뚢뼰維????????諛댁뎽 ??⑥щ턄??? ????紐?? ???용????덈펲.");
-  }
-
-  return mapped;
 }
 
 export async function deleteBlockedSlot(blockedSlotId: number): Promise<void> {
-  const blockedSlot = await prisma.blockedSlot.findUnique({
-    where: { id: blockedSlotId },
-    select: { id: true },
-  });
+  try {
+    const blockedSlot = await prisma.blockedSlot.findUnique({
+      where: { id: blockedSlotId },
+      select: { id: true },
+    });
 
-  if (!blockedSlot) {
-    throw new ApiError(404, "嶺뚢뼰維???????嶺뚢돦堉??????怨룸????덈펲.");
+    if (!blockedSlot) {
+      throw new ApiError(404, "삭제할 반복 차단 시간을 찾을 수 없습니다.");
+    }
+
+    await prisma.blockedSlot.delete({
+      where: { id: blockedSlotId },
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    if (isSchemaMismatchError(error)) {
+      throw new ApiError(503, migrationRequiredMessage("반복 예약 불가 시간 삭제"));
+    }
+    throw error;
   }
-
-  await prisma.blockedSlot.delete({
-    where: { id: blockedSlotId },
-  });
 }
 
 export async function createDateBlockedSlot(
   input: CreateDateBlockedSlotInput,
 ): Promise<AdminDateBlockedSlot> {
-  const overlappedWeekly = await prisma.blockedSlot.findFirst({
-    where: {
-      roomName: input.roomName,
-      weekday: getWeekdayFromDate(input.date),
-      startHour: { lt: input.endHour },
-      endHour: { gt: input.startHour },
-    },
-    select: { id: true },
-  });
+  try {
+    const overlappedWeekly = await prisma.blockedSlot.findFirst({
+      where: {
+        roomName: input.roomName,
+        weekday: getWeekdayFromDate(input.date),
+        startHour: { lt: input.endHour },
+        endHour: { gt: input.startHour },
+      },
+      select: { id: true },
+    });
 
-  if (overlappedWeekly) {
-    throw new ApiError(409, "???? 嶺뚢뼰維?????蹂?뜟???롪퍓?????덈펲.");
+    if (overlappedWeekly) {
+      throw new ApiError(409, "같은 시간대의 반복 차단 시간이 이미 등록되어 있습니다.");
+    }
+
+    const overlappedDate = await prisma.dateBlockedSlot.findFirst({
+      where: {
+        roomName: input.roomName,
+        date: input.date,
+        startHour: { lt: input.endHour },
+        endHour: { gt: input.startHour },
+      },
+      select: { id: true },
+    });
+
+    if (overlappedDate) {
+      throw new ApiError(409, "같은 날짜와 방의 겹치는 일회성 차단 시간이 이미 등록되어 있습니다.");
+    }
+
+    const created = await prisma.dateBlockedSlot.create({
+      data: {
+        roomName: input.roomName,
+        date: input.date,
+        startHour: input.startHour,
+        endHour: input.endHour,
+        reason: input.reason,
+      },
+      select: {
+        id: true,
+        roomName: true,
+        date: true,
+        startHour: true,
+        endHour: true,
+        reason: true,
+        createdAt: true,
+      },
+    });
+
+    const mapped = mapAdminDateBlockedSlot(created);
+    if (!mapped) {
+      throw new ApiError(500, "일회성 차단 시간 저장 후 방 이름을 확인하지 못했습니다.");
+    }
+
+    return mapped;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    if (isSchemaMismatchError(error)) {
+      throw new ApiError(503, migrationRequiredMessage("일회성 예약 불가 시간 등록"));
+    }
+    throw error;
   }
-
-  const overlappedDate = await prisma.dateBlockedSlot.findFirst({
-    where: {
-      roomName: input.roomName,
-      date: input.date,
-      startHour: { lt: input.endHour },
-      endHour: { gt: input.startHour },
-    },
-    select: { id: true },
-  });
-
-  if (overlappedDate) {
-    throw new ApiError(409, "???? 嶺뚢뼰維?????蹂?뜟???롪퍓?????덈펲.");
-  }
-
-  const created = await prisma.dateBlockedSlot.create({
-    data: {
-      roomName: input.roomName,
-      date: input.date,
-      startHour: input.startHour,
-      endHour: input.endHour,
-      reason: input.reason,
-    },
-    select: {
-      id: true,
-      roomName: true,
-      date: true,
-      startHour: true,
-      endHour: true,
-      reason: true,
-      createdAt: true,
-    },
-  });
-
-  const mapped = mapAdminDateBlockedSlot(created);
-  if (!mapped) {
-    throw new ApiError(500, "癲ル슓堉곁땟?????????獄쏅똻?????Β????? ????筌?? ?????????덊렡.");
-  }
-
-  return mapped;
 }
 
 export async function deleteDateBlockedSlot(dateBlockedSlotId: number): Promise<void> {
-  const slot = await prisma.dateBlockedSlot.findUnique({
-    where: { id: dateBlockedSlotId },
-    select: { id: true },
-  });
+  try {
+    const slot = await prisma.dateBlockedSlot.findUnique({
+      where: { id: dateBlockedSlotId },
+      select: { id: true },
+    });
 
-  if (!slot) {
-    throw new ApiError(404, "癲ル슓堉곁땟????????癲ル슓??젆???????⑤８?????덊렡.");
+    if (!slot) {
+      throw new ApiError(404, "삭제할 일회성 차단 시간을 찾을 수 없습니다.");
+    }
+
+    await prisma.dateBlockedSlot.delete({
+      where: { id: dateBlockedSlotId },
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    if (isSchemaMismatchError(error)) {
+      throw new ApiError(503, migrationRequiredMessage("일회성 예약 불가 시간 삭제"));
+    }
+    throw error;
   }
-
-  await prisma.dateBlockedSlot.delete({
-    where: { id: dateBlockedSlotId },
-  });
 }
 
 export async function createReservation(
@@ -900,11 +1040,14 @@ export async function createReservation(
       if (isRetryableTransactionError(error) && attempt < 2) {
         continue;
       }
+      if (isSchemaMismatchError(error)) {
+        throw new ApiError(503, migrationRequiredMessage("예약"));
+      }
       throw error;
     }
   }
 
-  throw new ApiError(500, "???고뒎 嶺뚳퐣瑗??繞???源낅뻣??⑤챷逾??寃몃쳳????꾩룇瑗???琉????鍮?? ???곕뻣 ??類ｌ┣??琉얠돪??");
+  throw new ApiError(500, "예약 처리 중 일시적인 충돌이 발생했습니다. 다시 시도해주세요.");
 }
 
 export async function cancelReservationByUser(
@@ -921,19 +1064,19 @@ export async function cancelReservationByUser(
   });
 
   if (!reservation) {
-    throw new ApiError(404, "???고뒎??嶺뚢돦堉??????怨룸????덈펲.");
+    throw new ApiError(404, "예약을 찾을 수 없습니다.");
   }
 
   if (
     reservation.studentId !== input.studentId ||
     reservation.name !== input.name
   ) {
-    throw new ApiError(401, "???쀬벐 ???裕????藥????源딅뭵??? ???용????덈펲.");
+    throw new ApiError(401, "학번 또는 이름이 일치하지 않습니다.");
   }
 
   const passwordMatched = await compare(input.password, reservation.passwordHash);
   if (!passwordMatched) {
-    throw new ApiError(401, "?????뺢퀡???먯쾸? ??源딅뭵??? ???용????덈펲.");
+    throw new ApiError(401, "비밀번호가 일치하지 않습니다.");
   }
 
   await prisma.reservation.delete({
@@ -948,7 +1091,7 @@ export async function cancelReservationAsAdmin(reservationId: number): Promise<v
   });
 
   if (!reservation) {
-    throw new ApiError(404, "???고뒎??嶺뚢돦堉??????怨룸????덈펲.");
+    throw new ApiError(404, "예약을 찾을 수 없습니다.");
   }
 
   await prisma.reservation.delete({

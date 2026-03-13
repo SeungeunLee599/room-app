@@ -47,7 +47,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const dateBlockedSlot = await createDateBlockedSlot(input);
 
     return NextResponse.json(
-      { message: "예약 불가 시간이 등록되었습니다.", dateBlockedSlot },
+      { message: "일회성 예약 불가 시간이 등록되었습니다.", dateBlockedSlot },
       { status: 201 },
     );
   } catch (error) {
@@ -66,9 +66,8 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     const dateBlockedSlotId = parseDateBlockedSlotId(payload);
     await deleteDateBlockedSlot(dateBlockedSlotId);
 
-    return NextResponse.json({ message: "예약 불가 시간이 삭제되었습니다." });
+    return NextResponse.json({ message: "일회성 예약 불가 시간이 삭제되었습니다." });
   } catch (error) {
     return handleApiError(error);
   }
 }
-
