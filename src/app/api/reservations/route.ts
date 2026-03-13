@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getLocalDateString } from "@/lib/date";
 import {
   ApiError,
@@ -42,4 +42,3 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return handleApiError(error);
   }
 }
-

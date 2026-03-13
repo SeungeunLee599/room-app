@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   ApiError,
   cancelReservationByUser,
@@ -28,4 +28,3 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     return handleApiError(error);
   }
 }
-
