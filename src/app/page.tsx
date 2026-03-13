@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { getLocalDateString } from "@/lib/date";
+import { getLocalDateString, isValidDateString } from "@/lib/date";
 import { ROOM_NAMES, type RoomName } from "@/lib/rooms";
 
 type PublicReservation = {
@@ -172,6 +172,13 @@ function normalizeMessage(message: string | undefined, fallback: string): string
 async function fetchReservationsByDate(
   date: string,
 ): Promise<{ ok: boolean; message?: string; reservations: PublicReservation[] }> {
+  if (!isValidDateString(date)) {
+    return {
+      ok: true,
+      reservations: [],
+    };
+  }
+
   const response = await fetch(`/api/reservations?date=${date}`, { cache: "no-store" });
   const data = (await response.json()) as {
     message?: string;

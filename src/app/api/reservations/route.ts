@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLocalDateString } from "@/lib/date";
+import { getLocalDateString, isValidDateString } from "@/lib/date";
 import { logApiError } from "@/lib/server-log";
 import {
   ApiError,
@@ -23,7 +23,11 @@ function handleApiError(error: unknown, context?: Record<string, string>): NextR
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const date = request.nextUrl.searchParams.get("date") ?? getLocalDateString();
+    const rawDate = request.nextUrl.searchParams.get("date");
+    const date =
+      rawDate && isValidDateString(rawDate)
+        ? rawDate
+        : getLocalDateString();
     const reservations = await getPublicReservationsByDate(date);
     return NextResponse.json({ reservations });
   } catch (error) {
