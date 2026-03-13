@@ -630,10 +630,9 @@ export function parseDateBlockedSlotId(payload: unknown): number {
   return dateBlockedSlotId;
 }
 
-export async function getPublicReservationsByDate(
+async function listPublicReservationsForDate(
   date: string,
 ): Promise<PublicReservation[]> {
-  assertDateFormatOnly(date);
   const weekday = getWeekdayFromDate(date);
 
   const reservations = await prisma.reservation.findMany({
@@ -774,6 +773,20 @@ export async function getPublicReservationsByDate(
     }
     return Number(b.isBlocked) - Number(a.isBlocked);
   });
+}
+
+export async function getPublicReservationsByDate(
+  date: string,
+): Promise<PublicReservation[]> {
+  assertDateFormatOnly(date);
+  return listPublicReservationsForDate(date);
+}
+
+export async function getPublicLookupReservationsByDate(
+  date: string,
+): Promise<PublicReservation[]> {
+  assertDateFormatOnly(date);
+  return listPublicReservationsForDate(date);
 }
 
 export async function getAdminReservations(
