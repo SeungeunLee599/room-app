@@ -158,6 +158,29 @@ function migrationRequiredMessage(feature: string): string {
   return `${feature} 기능을 사용하려면 데이터베이스 마이그레이션이 필요합니다. 최신 버전으로 다시 배포하거나 prisma migrate deploy를 적용하세요.`;
 }
 
+function logPublicLookupWarning(
+  stage: "blocked-slot" | "date-blocked-slot",
+  date: string,
+  error: unknown,
+): void {
+  if (error instanceof Error) {
+    console.error("[public-reservation-lookup-warning]", {
+      stage,
+      date,
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    });
+    return;
+  }
+
+  console.error("[public-reservation-lookup-warning]", {
+    stage,
+    date,
+    error,
+  });
+}
+
 function assertDate(value: string): void {
   if (!isValidDateString(value)) {
     throw new ApiError(400, "예약 날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)");
@@ -663,8 +686,9 @@ export async function getPublicReservationsByDate(
       },
     });
   } catch (error) {
+    logPublicLookupWarning("blocked-slot", date, error);
     if (!isOptionalBlockedSlotReadError(error)) {
-      throw error;
+      blockedSlots = [];
     }
   }
 
@@ -683,8 +707,9 @@ export async function getPublicReservationsByDate(
       },
     });
   } catch (error) {
+    logPublicLookupWarning("date-blocked-slot", date, error);
     if (!isOptionalBlockedSlotReadError(error)) {
-      throw error;
+      dateBlockedSlots = [];
     }
   }
 
