@@ -934,67 +934,75 @@ export default function HomePage() {
       </section>
 
       {selectedForCancel ? (
-        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
-          <h3 className="text-base font-semibold text-rose-700">예약 취소 확인</h3>
-          <p className="mt-1 text-sm text-rose-700">
-            {selectedForCancel.roomName} | {selectedForCancel.date} | {rangeLabel(selectedForCancel.startHour, selectedForCancel.endHour)}
-          </p>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6 backdrop-blur-[1px]"
+          onClick={() => setSelectedForCancel(null)}
+        >
+          <section
+            className="w-full max-w-md rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-[0_24px_60px_rgba(15,23,42,0.2)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-rose-700">예약 취소 확인</h3>
+            <p className="mt-1 text-sm text-rose-700">
+              {selectedForCancel.roomName} | {selectedForCancel.date} | {rangeLabel(selectedForCancel.startHour, selectedForCancel.endHour)}
+            </p>
 
-          <form className="mt-4 grid gap-3 sm:max-w-md" onSubmit={onSubmitCancel}>
-            <input
-              required
-              value={cancelForm.studentId}
-              onChange={(event) =>
-                setCancelForm((previous) => ({
-                  ...previous,
-                  studentId: event.target.value,
-                }))
-              }
-              placeholder="학번"
-              className="h-11 rounded-lg border border-rose-200 bg-white px-3"
-            />
-            <input
-              required
-              value={cancelForm.name}
-              onChange={(event) =>
-                setCancelForm((previous) => ({ ...previous, name: event.target.value }))
-              }
-              placeholder="이름"
-              className="h-11 rounded-lg border border-rose-200 bg-white px-3"
-            />
-            <input
-              required
-              maxLength={4}
-              pattern="\d{4}"
-              inputMode="numeric"
-              value={cancelForm.password}
-              onChange={(event) =>
-                setCancelForm((previous) => ({
-                  ...previous,
-                  password: event.target.value,
-                }))
-              }
-              placeholder="비밀번호 4자리"
-              className="h-11 rounded-lg border border-rose-200 bg-white px-3"
-            />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={loadingCancel}
-                className="h-11 rounded-lg bg-rose-600 px-4 font-semibold text-white disabled:opacity-60"
-              >
-                {loadingCancel ? "취소 처리 중..." : "취소 확정"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedForCancel(null)}
-                className="h-11 rounded-lg border border-rose-200 px-4"
-              >
-                닫기
-              </button>
-            </div>
-          </form>
-        </section>
+            <form className="mt-4 grid gap-3" onSubmit={onSubmitCancel}>
+              <input
+                required
+                value={cancelForm.studentId}
+                onChange={(event) =>
+                  setCancelForm((previous) => ({
+                    ...previous,
+                    studentId: event.target.value,
+                  }))
+                }
+                placeholder="학번"
+                className="h-11 rounded-lg border border-rose-200 bg-white px-3"
+              />
+              <input
+                required
+                value={cancelForm.name}
+                onChange={(event) =>
+                  setCancelForm((previous) => ({ ...previous, name: event.target.value }))
+                }
+                placeholder="이름"
+                className="h-11 rounded-lg border border-rose-200 bg-white px-3"
+              />
+              <input
+                required
+                maxLength={4}
+                pattern="\d{4}"
+                inputMode="numeric"
+                value={cancelForm.password}
+                onChange={(event) =>
+                  setCancelForm((previous) => ({
+                    ...previous,
+                    password: event.target.value,
+                  }))
+                }
+                placeholder="비밀번호 4자리"
+                className="h-11 rounded-lg border border-rose-200 bg-white px-3"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={loadingCancel}
+                  className="h-11 rounded-lg bg-rose-600 px-4 font-semibold text-white disabled:opacity-60"
+                >
+                  {loadingCancel ? "취소 처리 중..." : "취소 확정"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedForCancel(null)}
+                  className="h-11 rounded-lg border border-rose-200 px-4"
+                >
+                  닫기
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
       ) : null}
 
       <footer className="flex justify-end pt-1">
