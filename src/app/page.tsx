@@ -563,7 +563,7 @@ export default function HomePage() {
           <div className="mb-4 flex items-center justify-between">
             <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
               <h2 className="whitespace-nowrap text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 신청</h2>
-              <p className="text-xs text-slate-500">같은 학번은 같은 날짜에 최대 3시간까지만 예약할 수 있습니다.</p>
+              <p className="text-xs text-slate-500">하루 최대 3시간까지 예약할 수 있습니다.</p>
             </div>
             <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
               신규 예약
