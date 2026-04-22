@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { getLocalDateString, isValidDateString } from "@/lib/date";
+import { addDaysToDateString, getLocalDateString, isValidDateString } from "@/lib/date";
 import { ROOM_NAMES, type RoomName } from "@/lib/rooms";
 
 type PublicReservation = {
@@ -219,11 +219,7 @@ async function fetchNotices(): Promise<{ ok: boolean; message?: string; notices:
 
 export default function HomePage() {
   const todayDate = useMemo(() => getLocalDateString(), []);
-  const maxBookingDate = useMemo(() => {
-    const date = new Date();
-    date.setDate(date.getDate() + 14);
-    return getLocalDateString(date);
-  }, []);
+  const maxBookingDate = useMemo(() => addDaysToDateString(todayDate, 14), [todayDate]);
 
   const [todayReservations, setTodayReservations] = useState<PublicReservation[]>([]);
   const [boardDate, setBoardDate] = useState(todayDate);
