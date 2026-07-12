@@ -25,6 +25,14 @@ model Reservation {
   @@index([studentId, date])
 }
 
+model ReservationCancelAttempt {
+  id          Int      @id @default(autoincrement())
+  attemptKey  String
+  attemptedAt DateTime @default(now())
+
+  @@index([attemptKey, attemptedAt])
+}
+
 model BlockedSlot {
   id        Int      @id @default(autoincrement())
   roomName  String

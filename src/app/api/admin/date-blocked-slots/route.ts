@@ -7,7 +7,7 @@ import {
   parseCreateDateBlockedSlotInput,
   parseDateBlockedSlotId,
 } from "@/lib/reservation-service";
-import { assertAdminPassword } from "@/lib/admin-auth";
+import { assertAdminRequest } from "@/lib/admin-auth";
 
 function handleApiError(error: unknown): NextResponse {
   if (error instanceof ApiError) {
@@ -24,7 +24,7 @@ function handleApiError(error: unknown): NextResponse {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const password = request.headers.get("x-admin-password")?.trim() ?? "";
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const date = request.nextUrl.searchParams.get("date")?.trim() || undefined;
     const dateBlockedSlots = await getAdminDateBlockedSlots(date);
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const body = payload as { adminPassword?: unknown };
     const password =
       typeof body.adminPassword === "string" ? body.adminPassword.trim() : "";
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const input = parseCreateDateBlockedSlotInput(payload);
     const dateBlockedSlot = await createDateBlockedSlot(input);
@@ -61,7 +61,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     const body = payload as { adminPassword?: unknown };
     const password =
       typeof body.adminPassword === "string" ? body.adminPassword.trim() : "";
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const dateBlockedSlotId = parseDateBlockedSlotId(payload);
     await deleteDateBlockedSlot(dateBlockedSlotId);

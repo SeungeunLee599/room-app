@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { assertAdminPassword } from "@/lib/admin-auth";
+import { assertAdminRequest } from "@/lib/admin-auth";
 import {
   createNotice,
   deleteNotice,
@@ -25,7 +25,7 @@ function handleApiError(error: unknown): NextResponse {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const password = request.headers.get("x-admin-password")?.trim() ?? "";
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const notices = await getPublicNotices();
     return NextResponse.json({ notices });
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const body = payload as { adminPassword?: unknown };
     const password =
       typeof body.adminPassword === "string" ? body.adminPassword.trim() : "";
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const input = parseNoticeInput(payload);
     const notice = await createNotice(input);
@@ -60,7 +60,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     const body = payload as { adminPassword?: unknown };
     const password =
       typeof body.adminPassword === "string" ? body.adminPassword.trim() : "";
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const noticeId = parseNoticeId(payload);
     const input = parseNoticeInput(payload);
@@ -78,7 +78,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     const body = payload as { adminPassword?: unknown };
     const password =
       typeof body.adminPassword === "string" ? body.adminPassword.trim() : "";
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const noticeId = parseNoticeId(payload);
     await deleteNotice(noticeId);

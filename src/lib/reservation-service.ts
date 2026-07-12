@@ -1,4 +1,5 @@
 import { compare, hash } from "bcryptjs";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Prisma, type Reservation } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { addDaysToDateString, getLocalDateString, isValidDateString } from "@/lib/date";
@@ -17,7 +18,7 @@ export class ApiError extends Error {
 const ROOM_ORDER = new Map(ROOM_NAMES.map((name, index) => [name, index]));
 
 export type PublicReservation = {
-  id: number;
+  id: string;
   roomName: RoomName;
   date: string;
   startHour: number;
@@ -91,11 +92,20 @@ type CreateDateBlockedSlotInput = {
 };
 
 type CancelByUserInput = {
-  reservationId: number;
+  reservationToken: string;
   studentId: string;
   name: string;
   password: string;
 };
+
+type PublicReservationToken = {
+  reservationId: number;
+  signature: string | null;
+};
+
+const CANCEL_ATTEMPT_LIMIT = 5;
+const CANCEL_ATTEMPT_WINDOW_MS = 60 * 60 * 1000;
+const CANCEL_ATTEMPT_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 function parseTrimmedString(value: unknown): string {
   if (typeof value !== "string") {
@@ -112,6 +122,67 @@ function parseInteger(value: unknown): number {
     return Number(value);
   }
   return Number.NaN;
+}
+
+function createPublicReservationToken(id: number, passwordHash: string): string {
+  const encodedId = Buffer.from(String(id), "utf8").toString("base64url");
+  const signature = createHmac("sha256", passwordHash)
+    .update(`public-reservation:${id}`)
+    .digest("base64url");
+
+  return `${encodedId}.${signature}`;
+}
+
+function parsePublicReservationToken(value: string): PublicReservationToken | null {
+  if (/^[1-9]\d*$/.test(value)) {
+    return { reservationId: Number(value), signature: null };
+  }
+
+  const [encodedId, signature, extraPart] = value.split(".");
+  if (!encodedId || !signature || extraPart) {
+    return null;
+  }
+
+  try {
+    const decodedId = Buffer.from(encodedId, "base64url").toString("utf8");
+    if (!/^[1-9]\d*$/.test(decodedId)) {
+      return null;
+    }
+
+    const reservationId = Number(decodedId);
+    if (!Number.isSafeInteger(reservationId)) {
+      return null;
+    }
+
+    return { reservationId, signature };
+  } catch {
+    return null;
+  }
+}
+
+function hasMatchingReservationToken(
+  token: PublicReservationToken,
+  passwordHash: string,
+): boolean {
+  // Older tabs may still submit a numeric reservation ID until their bundle refreshes.
+  if (token.signature === null) {
+    return true;
+  }
+
+  const expected = createPublicReservationToken(token.reservationId, passwordHash)
+    .split(".")[1];
+
+  if (!expected || expected.length !== token.signature.length) {
+    return false;
+  }
+
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(token.signature));
+}
+
+function createCancellationAttemptKey(reservationId: number, studentId: string): string {
+  return createHash("sha256")
+    .update(`reservation-cancel:${reservationId}:${studentId.trim()}`)
+    .digest("hex");
 }
 
 function getWeekdayFromDate(value: string): number {
@@ -455,6 +526,7 @@ async function createReservationInTransaction(
 
       return {
         ...created,
+        id: createPublicReservationToken(created.id, passwordHash),
         roomName: created.roomName,
         isBlocked: false,
         blockedReason: null,
@@ -569,18 +641,18 @@ export function parseCancelByUserInput(payload: unknown): CancelByUserInput {
   }
 
   const body = payload as Record<string, unknown>;
-  const reservationId = parseInteger(body.reservationId);
+  const reservationToken = parseTrimmedString(body.reservationId);
   const studentId = parseTrimmedString(body.studentId);
   const name = parseTrimmedString(body.name);
   const password = parseTrimmedString(body.password);
 
-  if (!Number.isInteger(reservationId) || reservationId <= 0) {
-    throw new ApiError(400, "예약 ID가 올바르지 않습니다.");
+  if (!parsePublicReservationToken(reservationToken)) {
+    throw new ApiError(400, "예약 취소 정보가 올바르지 않습니다.");
   }
   assertNameAndStudent(studentId, name);
   assertPin(password);
 
-  return { reservationId, studentId, name, password };
+  return { reservationToken, studentId, name, password };
 }
 
 export function parseReservationId(payload: unknown): number {
@@ -641,6 +713,7 @@ async function listPublicReservationsForDate(
       endHour: true,
       durationHours: true,
       name: true,
+      passwordHash: true,
       createdAt: true,
     },
   });
@@ -712,7 +785,7 @@ async function listPublicReservationsForDate(
       isPublicRoomName(reservation.roomName),
     )
     .map((reservation) => ({
-      id: reservation.id,
+      id: createPublicReservationToken(reservation.id, reservation.passwordHash),
       roomName: reservation.roomName,
       date: reservation.date,
       startHour: reservation.startHour,
@@ -729,7 +802,7 @@ async function listPublicReservationsForDate(
       isPublicRoomName(slot.roomName),
     )
     .map((slot) => ({
-      id: slot.id,
+      id: `blocked-${slot.id}`,
       roomName: slot.roomName,
       date,
       startHour: slot.startHour,
@@ -746,7 +819,7 @@ async function listPublicReservationsForDate(
       isPublicRoomName(slot.roomName),
     )
     .map((slot) => ({
-      id: slot.id,
+      id: `date-blocked-${slot.id}`,
       roomName: slot.roomName,
       date: slot.date,
       startHour: slot.startHour,
@@ -1114,35 +1187,78 @@ export async function createReservation(
 export async function cancelReservationByUser(
   input: CancelByUserInput,
 ): Promise<void> {
-  const reservation = await prisma.reservation.findUnique({
-    where: { id: input.reservationId },
-    select: {
-      id: true,
-      studentId: true,
-      name: true,
-      passwordHash: true,
+  const token = parsePublicReservationToken(input.reservationToken);
+  if (!token) {
+    throw new ApiError(400, "예약 취소 정보가 올바르지 않습니다.");
+  }
+
+  const attemptKey = createCancellationAttemptKey(token.reservationId, input.studentId);
+  const now = new Date();
+  const attemptWindowStart = new Date(now.getTime() - CANCEL_ATTEMPT_WINDOW_MS);
+  const retentionStart = new Date(now.getTime() - CANCEL_ATTEMPT_RETENTION_MS);
+
+  const result = await prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${toLockKey(`cancel:${attemptKey}`)})`;
+
+      await tx.reservationCancelAttempt.deleteMany({
+        where: { attemptedAt: { lt: retentionStart } },
+      });
+
+      const failedAttempts = await tx.reservationCancelAttempt.count({
+        where: {
+          attemptKey,
+          attemptedAt: { gte: attemptWindowStart },
+        },
+      });
+
+      if (failedAttempts >= CANCEL_ATTEMPT_LIMIT) {
+        return "rate_limited" as const;
+      }
+
+      const reservation = await tx.reservation.findUnique({
+        where: { id: token.reservationId },
+        select: {
+          id: true,
+          studentId: true,
+          name: true,
+          passwordHash: true,
+        },
+      });
+
+      const tokenMatched = reservation
+        ? hasMatchingReservationToken(token, reservation.passwordHash)
+        : false;
+      const identityMatched = reservation
+        ? reservation.studentId === input.studentId && reservation.name === input.name
+        : false;
+      const passwordMatched = reservation && tokenMatched && identityMatched
+        ? await compare(input.password, reservation.passwordHash)
+        : false;
+
+      if (!reservation || !tokenMatched || !identityMatched || !passwordMatched) {
+        await tx.reservationCancelAttempt.create({ data: { attemptKey } });
+        return "authentication_failed" as const;
+      }
+
+      await tx.reservation.delete({ where: { id: reservation.id } });
+      await tx.reservationCancelAttempt.deleteMany({ where: { attemptKey } });
+
+      return "cancelled" as const;
     },
-  });
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5000,
+      timeout: 10000,
+    },
+  );
 
-  if (!reservation) {
-    throw new ApiError(404, "예약을 찾을 수 없습니다.");
+  if (result === "rate_limited") {
+    throw new ApiError(429, "취소 인증 시도가 너무 많습니다. 1시간 후 다시 시도해주세요.");
   }
-
-  if (
-    reservation.studentId !== input.studentId ||
-    reservation.name !== input.name
-  ) {
-    throw new ApiError(401, "학번 또는 이름이 일치하지 않습니다.");
+  if (result === "authentication_failed") {
+    throw new ApiError(401, "예약 취소 인증 정보가 일치하지 않습니다.");
   }
-
-  const passwordMatched = await compare(input.password, reservation.passwordHash);
-  if (!passwordMatched) {
-    throw new ApiError(401, "비밀번호가 일치하지 않습니다.");
-  }
-
-  await prisma.reservation.delete({
-    where: { id: input.reservationId },
-  });
 }
 
 export async function cancelReservationAsAdmin(reservationId: number): Promise<void> {

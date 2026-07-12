@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { assertAdminPassword } from "@/lib/admin-auth";
+import { assertAdminRequest } from "@/lib/admin-auth";
 import { ApiError } from "@/lib/reservation-service";
 import {
   StudentRegistryError,
@@ -85,7 +85,7 @@ function parseBulkAllowedStudents(payload: unknown): AllowedStudent[] {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const password = request.headers.get("x-admin-password")?.trim() ?? "";
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const students = await listAllowedStudents();
     return NextResponse.json({ students });
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const payload = await request.json();
     const password = parseAdminPasswordFromBody(payload);
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const student = parseAllowedStudent(payload);
     const saved = await upsertAllowedStudent(student);
@@ -119,7 +119,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
   try {
     const payload = await request.json();
     const password = parseAdminPasswordFromBody(payload);
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const students = parseBulkAllowedStudents(payload);
     const upsertedCount = await upsertAllowedStudentsInBulk(students);
@@ -137,7 +137,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   try {
     const payload = await request.json();
     const password = parseAdminPasswordFromBody(payload);
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const studentId = parseStudentId(payload);
     await deleteAllowedStudent(studentId);

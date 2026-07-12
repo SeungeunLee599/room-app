@@ -215,15 +215,11 @@ function sortAllowedStudents(items: AllowedStudent[]): AllowedStudent[] {
 }
 
 async function fetchAdminReservations(args: {
-  password: string;
   dateFilter?: string;
 }): Promise<{ ok: boolean; message?: string; reservations: AdminReservation[] }> {
   const query = args.dateFilter ? `?date=${args.dateFilter}` : "";
   const response = await fetch(`/api/admin/reservations${query}`, {
     cache: "no-store",
-    headers: {
-      "x-admin-password": args.password,
-    },
   });
 
   const data = (await response.json()) as {
@@ -245,16 +241,13 @@ async function fetchAdminReservations(args: {
   };
 }
 
-async function fetchAdminBlockedSlots(password: string): Promise<{
+async function fetchAdminBlockedSlots(): Promise<{
   ok: boolean;
   message?: string;
   blockedSlots: AdminBlockedSlot[];
 }> {
   const response = await fetch("/api/admin/blocked-slots", {
     cache: "no-store",
-    headers: {
-      "x-admin-password": password,
-    },
   });
 
   const data = (await response.json()) as {
@@ -276,16 +269,13 @@ async function fetchAdminBlockedSlots(password: string): Promise<{
   };
 }
 
-async function fetchAdminDateBlockedSlots(password: string): Promise<{
+async function fetchAdminDateBlockedSlots(): Promise<{
   ok: boolean;
   message?: string;
   dateBlockedSlots: AdminDateBlockedSlot[];
 }> {
   const response = await fetch("/api/admin/date-blocked-slots", {
     cache: "no-store",
-    headers: {
-      "x-admin-password": password,
-    },
   });
 
   const data = (await response.json()) as {
@@ -307,16 +297,13 @@ async function fetchAdminDateBlockedSlots(password: string): Promise<{
   };
 }
 
-async function fetchAdminNotices(password: string): Promise<{
+async function fetchAdminNotices(): Promise<{
   ok: boolean;
   message?: string;
   notices: BoardNotice[];
 }> {
   const response = await fetch("/api/admin/notices", {
     cache: "no-store",
-    headers: {
-      "x-admin-password": password,
-    },
   });
 
   const data = (await response.json()) as {
@@ -338,16 +325,13 @@ async function fetchAdminNotices(password: string): Promise<{
   };
 }
 
-async function fetchAdminAllowedStudents(password: string): Promise<{
+async function fetchAdminAllowedStudents(): Promise<{
   ok: boolean;
   message?: string;
   students: AllowedStudent[];
 }> {
   const response = await fetch("/api/admin/allowed-students", {
     cache: "no-store",
-    headers: {
-      "x-admin-password": password,
-    },
   });
 
   const data = (await response.json()) as {
@@ -423,13 +407,12 @@ export default function AdminPage() {
 
     const [reservationResult, blockedResult, dateBlockedResult, noticesResult, studentsResult] = await Promise.all([
       fetchAdminReservations({
-        password: adminPassword,
         dateFilter: useDateFilter ? dateFilter : undefined,
       }),
-      fetchAdminBlockedSlots(adminPassword),
-      fetchAdminDateBlockedSlots(adminPassword),
-      fetchAdminNotices(adminPassword),
-      fetchAdminAllowedStudents(adminPassword),
+      fetchAdminBlockedSlots(),
+      fetchAdminDateBlockedSlots(),
+      fetchAdminNotices(),
+      fetchAdminAllowedStudents(),
     ]);
 
     if (
@@ -466,6 +449,22 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, useDateFilter, dateFilter, refreshKey]);
 
+  useEffect(() => {
+    const restoreSession = async () => {
+      const response = await fetch("/api/admin/session", { cache: "no-store" });
+      if (!response.ok) {
+        return;
+      }
+
+      const data = (await response.json()) as { authenticated?: boolean };
+      if (data.authenticated) {
+        setAuthenticated(true);
+      }
+    };
+
+    void restoreSession();
+  }, []);
+
   const onSubmitAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!adminPassword.trim()) {
@@ -476,36 +475,24 @@ export default function AdminPage() {
     setLoading(true);
     setNotice(null);
 
-    const [reservationResult, blockedResult, dateBlockedResult, noticesResult, studentsResult] = await Promise.all([
-      fetchAdminReservations({
-        password: adminPassword,
-        dateFilter: useDateFilter ? dateFilter : undefined,
-      }),
-      fetchAdminBlockedSlots(adminPassword),
-      fetchAdminDateBlockedSlots(adminPassword),
-      fetchAdminNotices(adminPassword),
-      fetchAdminAllowedStudents(adminPassword),
-    ]);
+    const response = await fetch("/api/admin/session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password: adminPassword }),
+    });
+    const data = (await response.json()) as { message?: string };
 
-    if (
-      !reservationResult.ok ||
-      !blockedResult.ok ||
-      !dateBlockedResult.ok ||
-      !noticesResult.ok ||
-      !studentsResult.ok
-    ) {
-      setNotice({ kind: "error", text: "관리자 인증에 실패했습니다." });
+    if (!response.ok) {
+      setNotice({ kind: "error", text: data.message ?? "관리자 인증에 실패했습니다." });
       setAuthenticated(false);
       setLoading(false);
       return;
     }
 
+    setAdminPassword("");
     setAuthenticated(true);
-    setReservations(sortReservations(reservationResult.reservations));
-    setBlockedSlots(sortBlockedSlots(blockedResult.blockedSlots));
-    setDateBlockedSlots(sortDateBlockedSlots(dateBlockedResult.dateBlockedSlots));
-    setBoardNotices(noticesResult.notices);
-    setAllowedStudents(sortAllowedStudents(studentsResult.students));
     setNotice({ kind: "success", text: "관리자 인증이 완료되었습니다." });
     setLoading(false);
   };
@@ -523,7 +510,7 @@ export default function AdminPage() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ reservationId, adminPassword }),
+      body: JSON.stringify({ reservationId }),
     });
 
     const data = (await response.json()) as { message?: string };
@@ -561,7 +548,6 @@ export default function AdminPage() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        adminPassword,
         roomName: blockedForm.roomName,
         weekday,
         startHour,
@@ -601,7 +587,7 @@ export default function AdminPage() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ blockedSlotId, adminPassword }),
+      body: JSON.stringify({ blockedSlotId }),
     });
 
     const data = (await response.json()) as { message?: string };
@@ -638,7 +624,6 @@ export default function AdminPage() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        adminPassword,
         roomName: dateBlockedForm.roomName,
         date: dateBlockedForm.date,
         startHour,
@@ -678,7 +663,7 @@ export default function AdminPage() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ dateBlockedSlotId, adminPassword }),
+      body: JSON.stringify({ dateBlockedSlotId }),
     });
 
     const data = (await response.json()) as { message?: string };
@@ -704,8 +689,8 @@ export default function AdminPage() {
 
     const method = editingNoticeId ? "PATCH" : "POST";
     const payload = editingNoticeId
-      ? { adminPassword, noticeId: editingNoticeId, ...noticeForm }
-      : { adminPassword, ...noticeForm };
+      ? { noticeId: editingNoticeId, ...noticeForm }
+      : noticeForm;
 
     const response = await fetch("/api/admin/notices", {
       method,
@@ -747,7 +732,7 @@ export default function AdminPage() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ noticeId, adminPassword }),
+      body: JSON.stringify({ noticeId }),
     });
 
     const data = (await response.json()) as { message?: string };
@@ -781,7 +766,6 @@ export default function AdminPage() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        adminPassword,
         studentId: allowedStudentForm.studentId,
         name: allowedStudentForm.name,
       }),
@@ -813,7 +797,7 @@ export default function AdminPage() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ adminPassword, studentId }),
+      body: JSON.stringify({ studentId }),
     });
 
     const data = (await response.json()) as { message?: string };
@@ -849,7 +833,6 @@ export default function AdminPage() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        adminPassword,
         students: parsed.students,
       }),
     });
@@ -872,6 +855,24 @@ export default function AdminPage() {
     setBulkAllowedStudentText("");
     setRefreshKey((previous) => previous + 1);
     setLoading(false);
+  };
+
+  const onLogout = async () => {
+    setLoading(true);
+
+    try {
+      await fetch("/api/admin/session", { method: "DELETE" });
+    } finally {
+      setAuthenticated(false);
+      setAdminPassword("");
+      setReservations([]);
+      setBlockedSlots([]);
+      setDateBlockedSlots([]);
+      setBoardNotices([]);
+      setAllowedStudents([]);
+      setNotice({ kind: "success", text: "로그아웃되었습니다." });
+      setLoading(false);
+    }
   };
 
   const todayReservationsCount = reservations.filter((item) => item.date === todayDate).length;
@@ -925,21 +926,34 @@ export default function AdminPage() {
       <section className="grid gap-6">
         <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900">관리자 인증</h2>
-          <form className="mt-4 grid gap-3" onSubmit={onSubmitAuth}>
-            <input
-              type="password"
-              required
-              value={adminPassword}
-              onChange={(event) => setAdminPassword(event.target.value)}
-              placeholder="관리자 비밀번호"
-              className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
-            />
-            <button type="submit" disabled={loading} className="h-11 rounded-xl bg-[var(--accent)] font-semibold text-white">
-              {loading ? "확인 중..." : authenticated ? "재인증" : "로그인"}
-            </button>
-          </form>
+          {authenticated ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-emerald-700">보안 세션으로 로그인되어 있습니다.</p>
+              <button
+                type="button"
+                onClick={onLogout}
+                disabled={loading}
+                className="h-10 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700"
+              >
+                로그아웃
+              </button>
+            </div>
+          ) : (
+            <form className="mt-4 grid gap-3" onSubmit={onSubmitAuth}>
+              <input
+                type="password"
+                required
+                value={adminPassword}
+                onChange={(event) => setAdminPassword(event.target.value)}
+                placeholder="관리자 비밀번호"
+                className="h-11 rounded-xl border border-[var(--border)] bg-white px-3"
+              />
+              <button type="submit" disabled={loading} className="h-11 rounded-xl bg-[var(--accent)] font-semibold text-white">
+                {loading ? "확인 중..." : "로그인"}
+              </button>
+            </form>
+          )}
         </article>
-
       </section>
 
       {authenticated ? (

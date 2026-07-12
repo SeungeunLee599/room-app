@@ -6,7 +6,7 @@ import { addDaysToDateString, getLocalDateString, isValidDateString } from "@/li
 import { ROOM_NAMES, type RoomName } from "@/lib/rooms";
 
 type PublicReservation = {
-  id: number;
+  id: string;
   roomName: RoomName;
   date: string;
   startHour: number;

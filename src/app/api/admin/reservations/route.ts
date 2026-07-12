@@ -5,7 +5,7 @@ import {
   getAdminReservations,
   parseReservationId,
 } from "@/lib/reservation-service";
-import { assertAdminPassword } from "@/lib/admin-auth";
+import { assertAdminRequest } from "@/lib/admin-auth";
 
 function handleApiError(error: unknown): NextResponse {
   if (error instanceof ApiError) {
@@ -22,7 +22,7 @@ function handleApiError(error: unknown): NextResponse {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const password = request.headers.get("x-admin-password")?.trim() ?? "";
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const date = request.nextUrl.searchParams.get("date")?.trim();
     const reservations = await getAdminReservations(date || undefined);
@@ -39,7 +39,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     const body = payload as { adminPassword?: unknown };
     const password =
       typeof body.adminPassword === "string" ? body.adminPassword.trim() : "";
-    assertAdminPassword(password);
+    assertAdminRequest(request, password);
 
     const reservationId = parseReservationId(payload);
     await cancelReservationAsAdmin(reservationId);
