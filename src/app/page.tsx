@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { addDaysToDateString, getLocalDateString, isValidDateString } from "@/lib/date";
 import { ROOM_NAMES, type RoomName } from "@/lib/rooms";
+import { MedicalMark } from "./medical-mark";
 
 type PublicReservation = {
   id: string;
@@ -462,28 +463,29 @@ export default function HomePage() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <section className="relative isolate overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,#f7fbff_0%,#e7f0ff_38%,#dde8ff_65%,#f2f7ff_100%)] p-6 shadow-[0_20px_40px_rgba(42,79,138,0.12)] sm:p-8">
+    <main className="app-shell mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <section className="clinical-header p-6 sm:p-8">
         <div className="relative flex flex-col gap-4">
           <div className="space-y-4">
-            <p className="inline-flex w-fit items-center rounded-full border border-[#aec6f2] bg-white/80 px-4 py-1.5 text-sm font-extrabold tracking-wide text-[#204585] shadow-sm">
+            <p className="clinical-eyebrow inline-flex w-fit items-center gap-2 px-2.5 py-1.5 pr-3 text-xs font-bold tracking-[0.08em] sm:text-sm">
+              <MedicalMark className="h-6 w-6 shrink-0" />
               원광대학교 의과대학
             </p>
-            <h1 className="whitespace-nowrap text-[clamp(1.2rem,5vw,2.25rem)] font-black leading-tight tracking-tight text-[#0f2242]">
+            <h1 className="clinical-title whitespace-nowrap text-[clamp(1.2rem,5vw,2.25rem)] font-black leading-tight tracking-[-0.035em]">
               CPX/OSCE Room 예약 시스템
             </h1>
           </div>
         </div>
 
         <div className="relative mt-5 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-          <span className="rounded-full border border-white/80 bg-white/85 px-3 py-1 text-[#51688e] shadow-sm">
+          <span className="clinical-date px-3 py-1.5">
             오늘 {formatDateLabel(todayDate)}
           </span>
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
-        <div className="mb-4 flex items-center justify-between gap-2">
+      <section className="clinical-panel p-5 sm:p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="shrink-0 whitespace-nowrap text-base font-bold tracking-tight text-slate-900 sm:text-xl">오늘 예약 현황</h2>
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             <input
@@ -510,10 +512,7 @@ export default function HomePage() {
             );
 
             return (
-              <article
-                key={roomName}
-                className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] p-4"
-              >
+              <article key={roomName} className="room-card p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="font-bold text-slate-900">{roomName}</h3>
                   <span
@@ -555,7 +554,7 @@ export default function HomePage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.05fr_1fr]">
-        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+        <article className="clinical-panel p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
               <h2 className="whitespace-nowrap text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 신청</h2>
@@ -715,7 +714,7 @@ export default function HomePage() {
           </form>
         </article>
 
-        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+        <article className="clinical-panel p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">시간 현황</h2>
             <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]">
@@ -754,7 +753,7 @@ export default function HomePage() {
 
       {notice ? (
         <section
-          className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+          className={`clinical-alert border px-4 py-3 text-sm font-semibold ${
             notice.kind === "success"
               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
               : "border-rose-200 bg-rose-50 text-rose-700"
@@ -764,7 +763,7 @@ export default function HomePage() {
         </section>
       ) : null}
 
-      <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+      <section className="clinical-panel p-5 sm:p-6">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 목록 조회</h2>
           <div className="flex items-center gap-2">
@@ -896,7 +895,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[0_8px_30px_rgba(54,86,125,0.08)] sm:p-6">
+      <section className="clinical-panel p-5 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">공지사항</h2>
           <span className="text-sm text-[var(--muted)]">총 {boardNotices.length}개</span>
@@ -908,19 +907,16 @@ export default function HomePage() {
               등록된 공지사항이 없습니다.
             </p>
           ) : (
-            boardNotices.map((item, index) => (
+            boardNotices.map((item) => (
               <article
                 key={item.id}
-                className={`relative rounded-2xl border border-amber-200 bg-[#fff4b8] p-4 shadow-[0_10px_24px_rgba(214,171,70,0.24)] ${
-                  index % 3 === 0 ? "rotate-[-1deg]" : index % 3 === 1 ? "rotate-[1deg]" : "rotate-[-0.6deg]"
-                }`}
+                className="notice-card p-4"
               >
-                <div className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-amber-300" />
-                <h3 className="pr-4 text-base font-bold text-amber-900">{item.title}</h3>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-amber-900/90">
+                <h3 className="pr-4 text-base font-bold text-[#263d55]">{item.title}</h3>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
                   {item.content}
                 </p>
-                <p className="mt-3 text-xs text-amber-800/70">
+                <p className="mt-3 text-xs text-slate-500">
                   수정 {new Date(item.updatedAt).toLocaleDateString("ko-KR")}
                 </p>
               </article>
@@ -935,7 +931,7 @@ export default function HomePage() {
           onClick={() => setSelectedForCancel(null)}
         >
           <section
-            className="w-full max-w-md rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-[0_24px_60px_rgba(15,23,42,0.2)]"
+            className="cancel-dialog w-full max-w-md p-5"
             onClick={(event) => event.stopPropagation()}
           >
             <h3 className="text-base font-semibold text-rose-700">예약 취소 확인</h3>

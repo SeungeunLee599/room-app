@@ -1,17 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --background: #eef3f9;
-  --foreground: #142033;
+  --background: #f3f6f8;
+  --foreground: #18314d;
   --card: #ffffff;
-  --card-soft: #f5f8fc;
-  --border: #d5dfec;
-  --border-strong: #c4d1e2;
-  --accent: #2f6ee8;
-  --accent-soft: #e7efff;
-  --muted: #63758f;
-  --success: #1f9c66;
-  --danger: #d35757;
+  --card-soft: #f5f8fb;
+  --border: #dce6eb;
+  --border-strong: #ccdae2;
+  --accent: #83c5d8;
+  --accent-hover: #6db4ca;
+  --accent-soft: #edf8fb;
+  --muted: #6c8094;
+  --success: #3c8791;
+  --danger: #d76572;
 }
 
 @theme inline {
@@ -31,22 +32,243 @@ body {
 
 body {
   background:
-    radial-gradient(circle at 0% 0%, #dce8ff 0%, transparent 38%),
-    radial-gradient(circle at 100% 0%, #deedf7 0%, transparent 34%),
-    linear-gradient(180deg, #eff4fb 0%, #eaf0f7 100%);
+    radial-gradient(circle at 14% 0%, rgba(131, 197, 216, 0.08), transparent 24%),
+    linear-gradient(180deg, #f5f8fa 0%, #f1f5f7 100%);
   color: var(--foreground);
-  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: "Pretendard Variable", "Pretendard", "SUIT Variable", "Noto Sans KR",
+    "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  letter-spacing: -0.012em;
+}
+
+::selection {
+  background: #dceff4;
+  color: #234a61;
 }
 
 input,
 select,
+textarea,
 button {
   font: inherit;
 }
 
+input,
+select,
+textarea {
+  color: #29445e;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #92a2b0;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: #bfd5df;
+}
+
 input:focus,
 select:focus,
+textarea:focus,
 button:focus-visible {
-  outline: 2px solid #7ea7ff;
-  outline-offset: 1px;
+  outline: 2px solid #8cc9da;
+  outline-offset: 2px;
+}
+
+button {
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease,
+    box-shadow 160ms ease, filter 160ms ease;
+}
+
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+thead {
+  letter-spacing: -0.02em;
+}
+
+.app-shell {
+  position: relative;
+}
+
+.app-shell input:not([type="checkbox"]),
+.app-shell select,
+.app-shell textarea,
+.app-shell button {
+  border-radius: 15px;
+}
+
+.clinical-header {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid #e0e8ec;
+  border-radius: 28px;
+  background: linear-gradient(108deg, #ffffff 0%, #ffffff 62%, #f3fafc 100%);
+  box-shadow: 0 14px 36px rgba(50, 76, 96, 0.09);
+}
+
+.clinical-header::before {
+  display: none;
+}
+
+.clinical-header::after {
+  display: none;
+}
+
+.clinical-eyebrow {
+  border: 1px solid #d6ebf1;
+  border-radius: 999px;
+  background: #f0f9fb;
+  color: #39788c;
+  box-shadow: none;
+}
+
+.clinical-title {
+  color: #17314d;
+  overflow-wrap: anywhere;
+  text-shadow: none;
+  text-wrap: balance;
+}
+
+.clinical-date {
+  border: 1px solid #dbe8ed;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #657d91;
+  box-shadow: 0 4px 12px rgba(56, 83, 104, 0.05);
+  font-variant-numeric: tabular-nums;
+}
+
+.clinical-panel {
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid #e0e8ec;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 11px 30px rgba(52, 76, 95, 0.075);
+}
+
+.clinical-panel h2 {
+  color: #18314d;
+}
+
+.clinical-panel h2::before {
+  display: none;
+}
+
+.room-card,
+.room-card:nth-child(4n + 1),
+.room-card:nth-child(4n + 2),
+.room-card:nth-child(4n + 3),
+.room-card:nth-child(4n) {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #dce6eb;
+  border-radius: 20px;
+  background: #f5f8fb;
+  box-shadow: none;
+}
+
+.room-card .bg-emerald-100 {
+  border: 1px solid #cce7ed;
+  background: #eaf7f9;
+  color: #397d8d;
+  box-shadow: none;
+}
+
+.room-card .bg-amber-100 {
+  border: 1px solid #e5dccd;
+  background: #f7f3ec;
+  color: #7d6b51;
+}
+
+.app-shell .border-emerald-200 {
+  border-color: #c9e6ec;
+}
+
+.app-shell .bg-emerald-50 {
+  background: #edf8fa;
+}
+
+.app-shell .text-emerald-700 {
+  color: #3b7f8e;
+}
+
+.clinical-alert {
+  border-radius: 18px;
+  box-shadow: 0 7px 18px rgba(53, 76, 95, 0.065);
+}
+
+.notice-card {
+  position: relative;
+  border: 1px solid #dce7eb;
+  border-left: 5px solid #92cbd9;
+  border-radius: 20px;
+  background: #f7fafc;
+  box-shadow: none;
+  transform: none;
+}
+
+.notice-card::after {
+  display: none;
+}
+
+.header-stat {
+  border: 1px solid #d8e7ec;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #365d71;
+  box-shadow: 0 6px 16px rgba(56, 83, 104, 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.header-stat p {
+  color: #365d71 !important;
+}
+
+.header-stat p:first-child {
+  color: #788f9f !important;
+}
+
+.clinical-subtitle {
+  color: #687f92;
+}
+
+.clinical-back-link {
+  color: #50768b;
+  text-decoration-color: #b7cdd6;
+}
+
+.clinical-back-link:hover {
+  color: #315c73;
+}
+
+.cancel-dialog {
+  border: 1px solid #e3e8eb;
+  border-top: 5px solid #d97884;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(43, 63, 79, 0.18);
+}
+
+@media (max-width: 640px) {
+  .app-shell > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .clinical-header,
+  .clinical-panel {
+    border-radius: 24px;
+  }
+
+  .clinical-title {
+    white-space: normal;
+  }
 }

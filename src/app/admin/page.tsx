@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { getLocalDateString } from "@/lib/date";
 import { ROOM_NAMES, type RoomName } from "@/lib/rooms";
+import { MedicalMark } from "../medical-mark";
 
 type AdminReservation = {
   id: number;
@@ -878,34 +879,35 @@ export default function AdminPage() {
   const todayReservationsCount = reservations.filter((item) => item.date === todayDate).length;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <section className="rounded-3xl border border-[var(--border-strong)] bg-[var(--card)] p-6 shadow-[0_20px_50px_rgba(42,79,138,0.12)] sm:p-8">
+    <main className="app-shell mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <section className="clinical-header p-6 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="inline-flex w-fit items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-wide text-[var(--accent)]">
+            <p className="clinical-eyebrow inline-flex w-fit items-center gap-2 px-2 py-1 pr-3 text-xs font-semibold tracking-[0.08em]">
+              <MedicalMark className="h-6 w-6 shrink-0" />
               ADMIN DASHBOARD
             </p>
-            <h1 className="mt-3 text-2xl font-black text-slate-900 sm:text-3xl">
+            <h1 className="clinical-title mt-3 text-2xl font-black tracking-[-0.035em] sm:text-3xl">
               원광대학교 의과대학 CPX/OSCE Room 관리자
             </h1>
-            <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
+            <p className="clinical-subtitle mt-2 text-sm sm:text-base">
               예약 조회/취소, 예약 불가 시간, 공지사항 관리
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:w-fit">
-            <article className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] px-4 py-3">
-              <p className="text-xs text-[var(--muted)]">오늘 날짜</p>
-              <p className="mt-1 text-base font-bold text-slate-900">{formatDateLabel(todayDate)}</p>
+            <article className="header-stat px-4 py-3">
+              <p className="text-xs text-white/60">오늘 날짜</p>
+              <p className="mt-1 text-base font-bold text-white">{formatDateLabel(todayDate)}</p>
             </article>
-            <article className="rounded-2xl border border-[var(--border)] bg-[var(--card-soft)] px-4 py-3">
-              <p className="text-xs text-[var(--muted)]">오늘 예약 수</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">{todayReservationsCount}</p>
+            <article className="header-stat px-4 py-3">
+              <p className="text-xs text-white/60">오늘 예약 수</p>
+              <p className="mt-1 text-2xl font-bold text-white">{todayReservationsCount}</p>
             </article>
           </div>
         </div>
         <div className="mt-5">
-          <Link href="/" className="text-sm font-semibold text-slate-700 underline">
+          <Link href="/" className="clinical-back-link text-sm font-semibold underline underline-offset-4 transition">
             메인으로 이동
           </Link>
         </div>
@@ -913,7 +915,7 @@ export default function AdminPage() {
 
       {notice ? (
         <section
-          className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+          className={`clinical-alert border px-4 py-3 text-sm font-semibold ${
             notice.kind === "success"
               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
               : "border-rose-200 bg-rose-50 text-rose-700"
@@ -924,7 +926,7 @@ export default function AdminPage() {
       ) : null}
 
       <section className="grid gap-6">
-        <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+        <article className="clinical-panel p-5">
           <h2 className="text-lg font-bold text-slate-900">관리자 인증</h2>
           {authenticated ? (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -959,7 +961,7 @@ export default function AdminPage() {
       {authenticated ? (
         <>
           <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <article className="clinical-panel p-5">
               <h2 className="text-lg font-bold text-slate-900">예약 가능 학생 명단 관리</h2>
               <p className="mt-1 text-xs text-[var(--muted)]">
                 학번과 이름이 모두 일치해야 예약됩니다.
@@ -1025,7 +1027,7 @@ export default function AdminPage() {
               </form>
             </article>
 
-            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <article className="clinical-panel p-5">
               <h2 className="text-lg font-bold text-slate-900">등록된 학생 목록</h2>
               <p className="mt-1 text-xs text-[var(--muted)]">
                 총 {allowedStudents.length}명
@@ -1074,7 +1076,7 @@ export default function AdminPage() {
           </section>
 
           <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <article className="clinical-panel p-5">
               <h2 className="text-lg font-bold text-slate-900">예약 불가 시간대 등록</h2>
               <form className="mt-4 grid gap-3" onSubmit={onSubmitBlockedSlot}>
                 <select value={blockedForm.roomName} onChange={(event) => setBlockedForm((previous) => ({ ...previous, roomName: event.target.value as RoomName }))} className="h-11 rounded-xl border border-[var(--border)] bg-white px-3">
@@ -1108,7 +1110,7 @@ export default function AdminPage() {
               </form>
             </article>
 
-            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <article className="clinical-panel p-5">
               <h2 className="text-lg font-bold text-slate-900">차단 시간 목록</h2>
               <div className="mt-4 overflow-x-auto rounded-2xl border border-[var(--border)]">
                 <table className="min-w-full border-collapse text-sm">
@@ -1142,7 +1144,7 @@ export default function AdminPage() {
           </section>
 
           <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <article className="clinical-panel p-5">
               <h2 className="text-lg font-bold text-slate-900">일회성 예약 불가 시간 등록</h2>
               <form className="mt-4 grid gap-3" onSubmit={onSubmitDateBlockedSlot}>
                 <select
@@ -1230,7 +1232,7 @@ export default function AdminPage() {
               </form>
             </article>
 
-            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <article className="clinical-panel p-5">
               <h2 className="text-lg font-bold text-slate-900">일회성 차단 목록</h2>
               <div className="mt-4 overflow-x-auto rounded-2xl border border-[var(--border)]">
                 <table className="min-w-full border-collapse text-sm">
@@ -1276,7 +1278,7 @@ export default function AdminPage() {
           </section>
 
           <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <article className="clinical-panel p-5">
               <h2 className="text-lg font-bold text-slate-900">공지사항 작성</h2>
               <form className="mt-4 grid gap-3" onSubmit={onSubmitBoardNotice}>
                 <input required value={noticeForm.title} onChange={(event) => setNoticeForm((previous) => ({ ...previous, title: event.target.value }))} placeholder="공지사항 제목" className="h-11 rounded-xl border border-[var(--border)] bg-white px-3" />
@@ -1292,7 +1294,7 @@ export default function AdminPage() {
               </form>
             </article>
 
-            <article className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <article className="clinical-panel p-5">
               <h2 className="text-lg font-bold text-slate-900">공지사항 목록</h2>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {boardNotices.length === 0 ? (
@@ -1300,10 +1302,10 @@ export default function AdminPage() {
                     등록된 공지사항이 없습니다.
                   </p>
                 ) : (
-                  boardNotices.map((item, index) => (
-                    <article key={item.id} className={`rounded-xl border border-amber-200 bg-[#fff4b8] p-3 shadow-[0_8px_16px_rgba(214,171,70,0.2)] ${index % 2 === 0 ? "rotate-[-0.8deg]" : "rotate-[0.8deg]"}`}>
-                      <h3 className="text-sm font-bold text-amber-900">{item.title}</h3>
-                      <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-xs leading-5 text-amber-900/90">{item.content}</p>
+                  boardNotices.map((item) => (
+                    <article key={item.id} className="notice-card p-3">
+                      <h3 className="text-sm font-bold text-[#263d55]">{item.title}</h3>
+                      <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-xs leading-5 text-slate-700">{item.content}</p>
                       <div className="mt-3 flex items-center gap-2">
                         <button type="button" onClick={() => onEditBoardNotice(item)} className="rounded-md border border-sky-200 px-2 py-1 text-xs text-sky-700">수정</button>
                         <button type="button" onClick={() => onDeleteBoardNotice(item.id)} className="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-700">삭제</button>
@@ -1315,7 +1317,7 @@ export default function AdminPage() {
             </article>
           </section>
 
-          <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+          <section className="clinical-panel p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-bold text-slate-900">전체 예약 목록</h2>
               <div className="flex flex-wrap items-center gap-2">
