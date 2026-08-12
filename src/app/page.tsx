@@ -636,20 +636,23 @@ export default function HomePage() {
 
       <section className="grid gap-6 xl:grid-cols-[1.05fr_1fr]">
         <article className="clinical-panel p-5 sm:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex flex-col items-start gap-1">
+          <div className="mb-4">
+            <div className="flex items-center justify-between gap-3">
               <h2 className="whitespace-nowrap text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 신청</h2>
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+                신규 예약
+              </span>
+            </div>
+            <div className="mt-1 space-y-1">
               <p className="text-xs text-slate-500">하루 최대 3시간까지 예약할 수 있습니다.</p>
-              <p className="text-xs font-medium text-[#39748a]">
-                예약하려는 날짜의 15일 전 오후 10시부터 예약할 수 있습니다. 예: 8월 28일 예약은 8월 13일 오후 10시에 열립니다.
+              <p className="break-keep text-xs font-medium leading-5 text-[#39748a]">
+                <span className="block">예약하려는 날짜의 15일 전 오후 10시부터 예약할 수 있습니다.</span>
+                <span className="block text-slate-500">예: 8월 28일 예약은 8월 13일 오후 10시에 열립니다.</span>
               </p>
-              <p className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">
+              <p className="w-fit max-w-full break-keep rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold leading-5 text-amber-800">
                 8월 27일 예약만 예외적으로 8월 13일 오후 9시에 열립니다.
               </p>
             </div>
-            <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
-              신규 예약
-            </span>
           </div>
 
           <form className="grid gap-3" onSubmit={onSubmitReservation}>
