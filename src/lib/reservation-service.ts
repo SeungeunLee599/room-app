@@ -7,6 +7,7 @@ import {
   getBookingOpenDateString,
   getBookingWindow,
   getLocalDateString,
+  getSpecialBookingRestrictionMessage,
   isValidDateString,
 } from "@/lib/date";
 import { ROOM_NAMES, isValidRoomName, type RoomName } from "@/lib/rooms";
@@ -267,6 +268,11 @@ function assertDate(value: string): void {
 
   if (value < todayString) {
     throw new ApiError(400, "오늘 이전 날짜는 예약할 수 없습니다.");
+  }
+
+  const specialRestrictionMessage = getSpecialBookingRestrictionMessage(value);
+  if (specialRestrictionMessage) {
+    throw new ApiError(400, specialRestrictionMessage);
   }
 
   if (value > maxDateString) {

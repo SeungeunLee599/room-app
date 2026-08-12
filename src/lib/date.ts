@@ -1,6 +1,8 @@
 const SEOUL_TIME_ZONE = "Asia/Seoul";
 const BOOKING_OPEN_HOUR = 22;
 const BASE_BOOKING_DAYS_AHEAD = 14;
+const AUGUST_27_RESERVATION_DATE = "2026-08-27";
+const AUGUST_27_SPECIAL_OPEN_TIME = new Date("2026-08-13T21:00:00+09:00").getTime();
 
 type SeoulDateTimeParts = {
   year: string;
@@ -70,6 +72,20 @@ export function getBookingWindow(date: Date = new Date()): {
 
 export function getBookingOpenDateString(reservationDate: string): string {
   return addDaysToDateString(reservationDate, -(BASE_BOOKING_DAYS_AHEAD + 1));
+}
+
+export function getSpecialBookingRestrictionMessage(
+  reservationDate: string,
+  now: Date = new Date(),
+): string | null {
+  if (
+    reservationDate === AUGUST_27_RESERVATION_DATE &&
+    now.getTime() < AUGUST_27_SPECIAL_OPEN_TIME
+  ) {
+    return "2026년 8월 27일 예약은 2026년 8월 13일 오후 9시부터 가능합니다.";
+  }
+
+  return null;
 }
 
 export function formatKoreanDateString(dateString: string): string {
