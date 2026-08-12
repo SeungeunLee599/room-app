@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
-  formatKoreanDateString,
-  getBookingOpenDateString,
+  addDaysToDateString,
   getBookingWindow,
   getMillisecondsUntilBookingWindowChange,
   isValidDateString,
@@ -234,7 +233,11 @@ export default function HomePage() {
   const [bookingWindow, setBookingWindow] = useState<BookingWindow>(() =>
     getBookingWindow(new Date()),
   );
-  const { todayDate, maxBookingDate } = bookingWindow;
+  const { todayDate } = bookingWindow;
+  const maxSelectableDate = useMemo(
+    () => addDaysToDateString(todayDate, 15),
+    [todayDate],
+  );
 
   const [todayReservations, setTodayReservations] = useState<PublicReservation[]>([]);
   const [boardDate, setBoardDate] = useState(todayDate);
@@ -424,14 +427,10 @@ export default function HomePage() {
     event.preventDefault();
     setNotice(null);
 
-    if (form.date < todayDate || form.date > maxBookingDate) {
-      const openDate = getBookingOpenDateString(form.date);
+    if (form.date < todayDate) {
       setNotice({
         kind: "error",
-        text:
-          form.date < todayDate
-            ? "오늘 이전 날짜는 예약할 수 없습니다."
-            : `${formatKoreanDateString(form.date)} 예약은 ${formatKoreanDateString(openDate)} 오후 10시부터 가능합니다.`,
+        text: "오늘 이전 날짜는 예약할 수 없습니다.",
       });
       return;
     }
@@ -720,7 +719,7 @@ export default function HomePage() {
                 type="date"
                 required
                 min={todayDate}
-                max={maxBookingDate}
+                max={maxSelectableDate}
                 value={form.date}
                 onChange={(event) =>
                   setForm((previous) => ({
