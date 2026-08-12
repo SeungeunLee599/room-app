@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { addDaysToDateString, getLocalDateString, isValidDateString } from "@/lib/date";
+import {
+  formatKoreanDateString,
+  getBookingOpenDateString,
+  getBookingWindow,
+  getMillisecondsUntilBookingWindowChange,
+  isValidDateString,
+} from "@/lib/date";
 import { ROOM_NAMES, type RoomName } from "@/lib/rooms";
 import { MedicalMark } from "./medical-mark";
 
@@ -30,6 +36,12 @@ type BoardNotice = {
 type AlertNotice = {
   kind: "success" | "error";
   text: string;
+};
+
+type BookingWindow = {
+  todayDate: string;
+  maxBookingDate: string;
+  refreshAfterMs: number;
 };
 
 type ReservationForm = {
@@ -219,8 +231,10 @@ async function fetchNotices(): Promise<{ ok: boolean; message?: string; notices:
 }
 
 export default function HomePage() {
-  const todayDate = useMemo(() => getLocalDateString(), []);
-  const maxBookingDate = useMemo(() => addDaysToDateString(todayDate, 14), [todayDate]);
+  const [bookingWindow, setBookingWindow] = useState<BookingWindow>(() =>
+    getBookingWindow(new Date()),
+  );
+  const { todayDate, maxBookingDate } = bookingWindow;
 
   const [todayReservations, setTodayReservations] = useState<PublicReservation[]>([]);
   const [boardDate, setBoardDate] = useState(todayDate);
@@ -252,6 +266,67 @@ export default function HomePage() {
   const [loadingCancel, setLoadingCancel] = useState(false);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+
+    const scheduleNextSync = (delay: number) => {
+      if (timerId) {
+        clearTimeout(timerId);
+      }
+      timerId = setTimeout(syncBookingWindow, Math.max(1_000, delay));
+    };
+
+    const syncBookingWindow = async () => {
+      try {
+        const response = await fetch("/api/booking-window", { cache: "no-store" });
+        const data = (await response.json()) as Partial<BookingWindow>;
+        if (
+          active &&
+          response.ok &&
+          typeof data.todayDate === "string" &&
+          typeof data.maxBookingDate === "string" &&
+          typeof data.refreshAfterMs === "number"
+        ) {
+          setBookingWindow({
+            todayDate: data.todayDate,
+            maxBookingDate: data.maxBookingDate,
+            refreshAfterMs: data.refreshAfterMs,
+          });
+          scheduleNextSync(data.refreshAfterMs);
+          return;
+        }
+      } catch {
+        // The server remains the final authority when the reservation is submitted.
+      }
+
+      const fallback = getBookingWindow(new Date());
+      if (active) {
+        setBookingWindow(fallback);
+        scheduleNextSync(getMillisecondsUntilBookingWindowChange(new Date()));
+      }
+    };
+
+    const updateWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void syncBookingWindow();
+      }
+    };
+
+    void syncBookingWindow();
+    window.addEventListener("focus", syncBookingWindow);
+    document.addEventListener("visibilitychange", updateWhenVisible);
+
+    return () => {
+      active = false;
+      if (timerId) {
+        clearTimeout(timerId);
+      }
+      window.removeEventListener("focus", syncBookingWindow);
+      document.removeEventListener("visibilitychange", updateWhenVisible);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -350,7 +425,14 @@ export default function HomePage() {
     setNotice(null);
 
     if (form.date < todayDate || form.date > maxBookingDate) {
-      setNotice({ kind: "error", text: "예약 날짜는 오늘부터 14일 이내만 선택할 수 있습니다." });
+      const openDate = getBookingOpenDateString(form.date);
+      setNotice({
+        kind: "error",
+        text:
+          form.date < todayDate
+            ? "오늘 이전 날짜는 예약할 수 없습니다."
+            : `${formatKoreanDateString(form.date)} 예약은 ${formatKoreanDateString(openDate)} 오후 10시부터 가능합니다.`,
+      });
       return;
     }
 
@@ -556,9 +638,12 @@ export default function HomePage() {
       <section className="grid gap-6 xl:grid-cols-[1.05fr_1fr]">
         <article className="clinical-panel p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between">
-            <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
+            <div className="flex flex-col items-start gap-1">
               <h2 className="whitespace-nowrap text-lg font-bold tracking-tight text-slate-900 sm:text-xl">예약 신청</h2>
               <p className="text-xs text-slate-500">하루 최대 3시간까지 예약할 수 있습니다.</p>
+              <p className="text-xs font-medium text-[#39748a]">
+                예약하려는 날짜의 15일 전 오후 10시부터 예약할 수 있습니다. 예: 8월 27일 예약은 8월 12일 오후 10시에 열립니다.
+              </p>
             </div>
             <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
               신규 예약

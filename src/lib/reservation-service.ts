@@ -2,7 +2,13 @@ import { compare, hash } from "bcryptjs";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Prisma, type Reservation } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { addDaysToDateString, getLocalDateString, isValidDateString } from "@/lib/date";
+import {
+  formatKoreanDateString,
+  getBookingOpenDateString,
+  getBookingWindow,
+  getLocalDateString,
+  isValidDateString,
+} from "@/lib/date";
 import { ROOM_NAMES, isValidRoomName, type RoomName } from "@/lib/rooms";
 import { isAllowedStudentName } from "@/lib/student-registry";
 
@@ -257,11 +263,18 @@ function assertDate(value: string): void {
     throw new ApiError(400, "예약 날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)");
   }
 
-  const todayString = getLocalDateString();
-  const maxDateString = addDaysToDateString(todayString, 14);
+  const { todayDate: todayString, maxBookingDate: maxDateString } = getBookingWindow();
 
-  if (value < todayString || value > maxDateString) {
-    throw new ApiError(400, "예약 날짜는 오늘부터 14일 이내에서만 선택할 수 있습니다.");
+  if (value < todayString) {
+    throw new ApiError(400, "오늘 이전 날짜는 예약할 수 없습니다.");
+  }
+
+  if (value > maxDateString) {
+    const openDateString = getBookingOpenDateString(value);
+    throw new ApiError(
+      400,
+      `${formatKoreanDateString(value)} 예약은 ${formatKoreanDateString(openDateString)} 오후 10시부터 가능합니다.`,
+    );
   }
 }
 
