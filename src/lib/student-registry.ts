@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import allowedStudents from "@/data/allowed-students.json";
 import { prisma } from "@/lib/prisma";
+import { createRetryableInitializer } from "@/lib/retryable-initializer";
 
 export type AllowedStudent = {
   studentId: string;
@@ -96,7 +97,7 @@ async function ensureAllowedStudentTable(): Promise<void> {
   ensuredAllowedStudentTable = true;
 }
 
-async function ensureSeededFallbackStudents(): Promise<void> {
+const ensureSeededFallbackStudents = createRetryableInitializer(async () => {
   await ensureAllowedStudentTable();
 
   if (seededFallbackStudents) {
@@ -112,7 +113,7 @@ async function ensureSeededFallbackStudents(): Promise<void> {
   }
 
   seededFallbackStudents = true;
-}
+});
 
 function sortAllowedStudents(items: AllowedStudent[]): AllowedStudent[] {
   return [...items].sort((a, b) => a.studentId.localeCompare(b.studentId));
