@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getLocalDateString, isValidDateString } from "@/lib/date";
 import { logApiError } from "@/lib/server-log";
 import {
+  isAutomatedReservationRequest,
+  isReservationRateLimited,
+} from "@/lib/reservation-request-guard";
+import {
   ApiError,
   createReservation,
   getPublicLookupReservationsByDate,
@@ -54,7 +58,32 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const payload = await request.json();
+    if (await isAutomatedReservationRequest()) {
+      return jsonWithNoStore(
+        { message: "자동화된 예약 요청으로 감지되었습니다. 페이지를 새로고침한 후 직접 예약해주세요." },
+        { status: 403 },
+      );
+    }
+
+    const payload: unknown = await request.json();
+    const rateLimitStudentId =
+      typeof payload === "object" &&
+      payload !== null &&
+      "studentId" in payload &&
+      typeof payload.studentId === "string"
+        ? payload.studentId
+        : "";
+
+    if (
+      rateLimitStudentId &&
+      (await isReservationRateLimited(request, rateLimitStudentId))
+    ) {
+      return jsonWithNoStore(
+        { message: "예약 요청이 너무 많습니다. 10초 후 다시 시도해주세요." },
+        { status: 429 },
+      );
+    }
+
     const input = parseCreateReservationInput(payload);
     const reservation = await createReservation(input);
     return NextResponse.json(
