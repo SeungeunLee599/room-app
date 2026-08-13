@@ -655,10 +655,19 @@ export default function HomePage() {
             </div>
           </div>
 
-          <form className="grid gap-3" onSubmit={onSubmitReservation}>
+          <form
+            className="grid gap-3"
+            autoComplete="off"
+            onSubmit={onSubmitReservation}
+          >
             <div className="grid gap-3 sm:grid-cols-2">
               <input
                 required
+                name="booking-student-reference"
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 value={form.studentId}
                 onChange={(event) =>
                   setForm((previous) => ({ ...previous, studentId: event.target.value }))
@@ -668,6 +677,8 @@ export default function HomePage() {
               />
               <input
                 required
+                name="booking-display-name"
+                autoComplete="off"
                 value={form.name}
                 onChange={(event) =>
                   setForm((previous) => ({ ...previous, name: event.target.value }))
@@ -679,6 +690,8 @@ export default function HomePage() {
 
             <input
               required
+              name="booking-contact-number"
+              autoComplete="off"
               inputMode="tel"
               value={form.phoneNumber}
               onChange={(event) =>
@@ -690,6 +703,12 @@ export default function HomePage() {
 
             <input
               required
+              type="password"
+              name="booking-private-pin"
+              autoComplete="new-password"
+              data-1p-ignore
+              data-lpignore="true"
+              data-form-type="other"
               maxLength={4}
               pattern="\d{4}"
               inputMode="numeric"
@@ -1029,9 +1048,18 @@ export default function HomePage() {
               {selectedForCancel.roomName} | {selectedForCancel.date} | {rangeLabel(selectedForCancel.startHour, selectedForCancel.endHour)}
             </p>
 
-            <form className="mt-4 grid gap-3" onSubmit={onSubmitCancel}>
+            <form
+              className="mt-4 grid gap-3"
+              autoComplete="off"
+              onSubmit={onSubmitCancel}
+            >
               <input
                 required
+                name="cancellation-student-reference"
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 value={cancelForm.studentId}
                 onChange={(event) =>
                   setCancelForm((previous) => ({
@@ -1044,6 +1072,8 @@ export default function HomePage() {
               />
               <input
                 required
+                name="cancellation-display-name"
+                autoComplete="off"
                 value={cancelForm.name}
                 onChange={(event) =>
                   setCancelForm((previous) => ({ ...previous, name: event.target.value }))
@@ -1053,6 +1083,12 @@ export default function HomePage() {
               />
               <input
                 required
+                type="password"
+                name="cancellation-private-pin"
+                autoComplete="new-password"
+                data-1p-ignore
+                data-lpignore="true"
+                data-form-type="other"
                 maxLength={4}
                 pattern="\d{4}"
                 inputMode="numeric"
