@@ -649,9 +649,6 @@ export default function HomePage() {
                 <span className="block">예약하려는 날짜의 15일 전 오후 10시부터 예약할 수 있습니다.</span>
                 <span className="block text-slate-500">예: 8월 28일 예약은 8월 13일 오후 10시에 열립니다.</span>
               </p>
-              <p className="w-fit max-w-full break-keep rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold leading-5 text-amber-800">
-                8월 27일 예약만 예외적으로 8월 13일 오후 9시에 열립니다.
-              </p>
             </div>
           </div>
 
